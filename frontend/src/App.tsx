@@ -596,16 +596,12 @@ function App() {
                     {pathNodes.map((node, i) => (
                         <div className="path-node-wrap" key={node.id}>
                             {i > 0 && (
-                                <svg
-                                    className={`path-connector-svg ${i % 2 === 0 ? 'to-left' : 'to-right'} ${connectorState(pathNodes[i - 1].state)}`}
-                                    viewBox="0 0 180 120"
+                                <div
+                                    className={`path-connector-simple ${i % 2 === 0 ? 'to-left' : 'to-right'} ${connectorState(pathNodes[i - 1].state)}`}
                                     aria-hidden="true"
                                 >
-                                    <path
-                                        d={i % 2 === 0 ? 'M152 10 C 62 24, 62 96, 28 112' : 'M28 10 C 118 24, 118 96, 152 112'}
-                                        fill="none"
-                                    />
-                                </svg>
+                                    <span className="path-arrow-head"></span>
+                                </div>
                             )}
                             <div
                                 className={`path-node ${node.state} ${bouncingNodeId === node.id ? 'tap-bounce' : ''}`}
