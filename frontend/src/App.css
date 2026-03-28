@@ -64,6 +64,51 @@ select {
   overflow: hidden;
 }
 
+.boot-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.boot-logo {
+  font-family: 'Baloo 2', cursive;
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.boot-logo img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+}
+
+.boot-sub {
+  font-size: 13px;
+  color: #6f5d11;
+}
+
+.boot-loader {
+  width: 200px;
+  height: 10px;
+  border-radius: 999px;
+  background: #f2e5ae;
+  overflow: hidden;
+  border: 1px solid #e7cb67;
+}
+
+.boot-loader span {
+  display: block;
+  height: 100%;
+  width: 45%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd53c, #ff9800);
+  animation: bootLoad 1s ease-in-out infinite alternate;
+}
+
 .glow-circle {
   position: absolute;
   border-radius: 999px;
@@ -99,6 +144,7 @@ select {
 .brand-pill {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   border-radius: 999px;
   padding: 7px 14px;
   background: #2f2500;
@@ -106,6 +152,13 @@ select {
   font-size: 12px;
   font-weight: 800;
   margin-bottom: 14px;
+}
+
+.brand-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .auth-card h1 {
@@ -229,8 +282,19 @@ select {
 }
 
 .topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 18px;
   line-height: 1;
+}
+
+.topbar-logo-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #e6ca66;
 }
 
 .topbar-sub {
@@ -280,6 +344,47 @@ select {
   flex-wrap: wrap;
   font-size: 11px;
   color: #5f4a08;
+}
+
+.sync-pill {
+  border-radius: 999px;
+  background: #2f2500;
+  color: #ffe27c;
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
+.sync-error,
+.sync-warn {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-error {
+  background: #fff0f0;
+  border: 1px solid #efb9b9;
+  color: #7f1d1d;
+}
+
+.sync-error button {
+  margin-left: auto;
+  border: 1px solid #d99898;
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sync-warn {
+  background: #fff9e8;
+  border: 1px solid #edd07e;
+  color: #6f5d11;
 }
 
 .sync-strip strong {
@@ -483,6 +588,35 @@ select {
   margin-bottom: 12px;
 }
 
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.mode-switch span {
+  font-size: 11px;
+  color: #7d6516;
+  font-weight: 700;
+}
+
+.mode-switch button {
+  border: 1px solid #efd57a;
+  border-radius: 999px;
+  background: #fffef8;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.mode-switch button.active {
+  background: #ffd53c;
+  border-color: #e4b825;
+  font-weight: 700;
+}
+
 .analytics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -531,6 +665,41 @@ select {
   border: 1px solid #efd57a;
   border-radius: 12px;
   padding: 10px;
+}
+
+.health-checks {
+  margin-top: 10px;
+  border: 1px solid #efd57a;
+  border-radius: 12px;
+  background: #fffef8;
+  padding: 10px;
+}
+
+.health-checks h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.health-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #6d5711;
+  padding: 6px 0;
+  border-top: 1px dashed #edd483;
+}
+
+.health-row:first-of-type {
+  border-top: none;
+}
+
+.health-row .ok {
+  color: #15803d;
+}
+
+.health-row .bad {
+  color: #b91c1c;
 }
 
 .live-feed h4 {
@@ -1025,6 +1194,14 @@ select {
   font-size: 18px;
 }
 
+.nav-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(47, 37, 0, 0.2);
+}
+
 .bottom-nav button.active {
   color: #2f2500;
   background: #ffe067;
@@ -1223,6 +1400,16 @@ button {
   }
 }
 
+@keyframes bootLoad {
+  from {
+    transform: translateX(-40%);
+  }
+
+  to {
+    transform: translateX(130%);
+  }
+}
+
 @media (max-width: 900px) {
   .aura-shell {
     margin: 0;
@@ -1258,6 +1445,11 @@ button {
 
   .topbar-brand {
     font-size: 16px;
+  }
+
+  .topbar-logo-img {
+    width: 20px;
+    height: 20px;
   }
 
   .topbar-sub {

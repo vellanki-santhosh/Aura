@@ -13,6 +13,7 @@ import {
 
 type Role = 'student' | 'admin';
 type Screen = 'path' | 'leaderboard' | 'users' | 'profile' | 'admin';
+type AppMode = 'normal' | 'degraded' | 'offline';
 type ActivityItem = { time: string; text: string; pts: string };
 type RejectedSubmission = { reason?: string; desc: string };
 type LiveMetrics = {
@@ -65,6 +66,7 @@ const createConfettiPieces = (count = 30): ConfettiPiece[] =>
     }));
 
 const AURA_STORAGE_KEY = 'aura-state-v2';
+const AURA_LOGO_URL = '/logo.png';
 
 const toClockTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -105,6 +107,11 @@ function App() {
     const [activityFeed, setActivityFeed] = useState<ActivityItem[]>(activityData);
     const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
     const [lastSyncAt, setLastSyncAt] = useState(toClockTime(new Date()));
+    const [isBooting, setIsBooting] = useState(true);
+    const [appMode, setAppMode] = useState<AppMode>('normal');
+    const [syncError, setSyncError] = useState<string | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [loadWarning, setLoadWarning] = useState<string | null>(null);
     const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>({
         engagement: 74,
         activeUsers: 22,
@@ -125,6 +132,8 @@ function App() {
     const closeModal = () => setModal((prev) => ({ ...prev, isOpen: false }));
 
     useEffect(() => {
+        const bootTimer = setTimeout(() => setIsBooting(false), 900);
+
         try {
             if (typeof window === 'undefined') return;
             const rawState = localStorage.getItem(AURA_STORAGE_KEY);
@@ -140,8 +149,10 @@ function App() {
             setDailyQuestDone(saved.dailyQuestDone ?? false);
             setActivityFeed(saved.activityFeed?.length ? saved.activityFeed : activityData);
         } catch {
-            // ignore malformed local data and continue with defaults
+            setLoadWarning('Previous local data looked invalid. Aura started with safe defaults.');
         }
+
+        return () => clearTimeout(bootTimer);
     }, []);
 
     useEffect(() => {
@@ -187,6 +198,22 @@ function App() {
 
     useEffect(() => {
         const timer = setInterval(() => {
+            if (appMode === 'offline') {
+                setIsOnline(false);
+                setSyncError('Live sync paused in offline mode.');
+                return;
+            }
+
+            setIsSyncing(true);
+            const failChance = appMode === 'degraded' ? 0.35 : 0.08;
+            if (Math.random() < failChance) {
+                setSyncError('Realtime fetch delayed. Retrying...');
+                setIsSyncing(false);
+                return;
+            }
+
+            setIsOnline(true);
+            setSyncError(null);
             setLiveMetrics((prev) => ({
                 engagement: jitter(prev.engagement, 2, 40, 99),
                 activeUsers: jitter(prev.activeUsers, 3, 6, 80),
@@ -206,10 +233,22 @@ function App() {
 
             const eventText = eventPool[Math.floor(Math.random() * eventPool.length)];
             setLiveEvents((prev) => [eventText, ...prev].slice(0, 4));
+            setIsSyncing(false);
         }, 6000);
 
         return () => clearInterval(timer);
-    }, []);
+    }, [appMode]);
+
+    const retrySync = () => {
+        setIsSyncing(true);
+        setTimeout(() => {
+            setSyncError(null);
+            setIsOnline(true);
+            setLastSyncAt(toClockTime(new Date()));
+            setLiveEvents((prev) => ['Manual sync completed successfully', ...prev].slice(0, 4));
+            setIsSyncing(false);
+        }, 650);
+    };
 
     const rewardXP = (amount: number, message: string, activityText: string) => {
         const burstId = Date.now();
@@ -312,7 +351,10 @@ function App() {
                 <div className="glow-circle glow-two"></div>
 
                 <div className="auth-card">
-                    <div className="brand-pill">AURA</div>
+                    <div className="brand-pill">
+                        <img src={AURA_LOGO_URL} alt="Aura logo" className="brand-logo" />
+                        <span>AURA</span>
+                    </div>
                     <h1>Learn, Lead, Level Up</h1>
                     <p>
                         Aura turns campus life into a fun student quest where every contribution earns XP, streaks,
@@ -372,11 +414,24 @@ function App() {
         );
     }
 
+    if (isBooting) {
+        return (
+            <div className="boot-screen">
+                <div className="boot-logo"><img src={AURA_LOGO_URL} alt="Aura logo" /></div>
+                <div className="boot-sub">Initializing realtime campus engine...</div>
+                <div className="boot-loader"><span></span></div>
+            </div>
+        );
+    }
+
     return (
         <div className="aura-shell">
             <header className="topbar">
                 <div>
-                    <div className="topbar-brand">🏠 Aura</div>
+                    <div className="topbar-brand">
+                        <img src={AURA_LOGO_URL} alt="Aura logo" className="topbar-logo-img" />
+                        <span>Aura</span>
+                    </div>
                     <div className="topbar-sub">{user?.role === 'admin' ? 'Admin Mode' : levelTitle}</div>
                 </div>
                 <div className="topbar-stats">
@@ -406,8 +461,16 @@ function App() {
                 <div className="sync-strip">
                     <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
                     <span>{isOnline ? 'Online sync active' : 'Offline mode'}</span>
+                    {isSyncing && <span className="sync-pill">Syncing...</span>}
                     <strong>Last sync: {lastSyncAt}</strong>
                 </div>
+                {syncError && (
+                    <div className="sync-error">
+                        <span>{syncError}</span>
+                        <button onClick={retrySync}>Retry now</button>
+                    </div>
+                )}
+                {loadWarning && <div className="sync-warn">{loadWarning}</div>}
             </section>
 
             <main className="screen-wrap">
@@ -425,6 +488,14 @@ function App() {
                         </article>
 
                         <h3 className="section-title">My Learning Trail</h3>
+                        <div className="mode-switch">
+                            <span>Simulation:</span>
+                            {(['normal', 'degraded', 'offline'] as AppMode[]).map((mode) => (
+                                <button key={mode} className={appMode === mode ? 'active' : ''} onClick={() => setAppMode(mode)}>
+                                    {mode}
+                                </button>
+                            ))}
+                        </div>
                         <div className="path-list">
                             {pathNodes.map((node, index) => (
                                 <div className="path-item" key={node.id}>
@@ -479,6 +550,22 @@ function App() {
                             {liveEvents.map((eventText, idx) => (
                                 <div key={`${eventText}-${idx}`} className="live-feed-item">{eventText}</div>
                             ))}
+                        </div>
+
+                        <div className="health-checks">
+                            <h4>Health Checks</h4>
+                            <div className="health-row">
+                                <span>Network</span>
+                                <strong className={isOnline ? 'ok' : 'bad'}>{isOnline ? 'PASS' : 'FAIL'}</strong>
+                            </div>
+                            <div className="health-row">
+                                <span>Sync Pipeline</span>
+                                <strong className={!syncError ? 'ok' : 'bad'}>{!syncError ? 'PASS' : 'WARN'}</strong>
+                            </div>
+                            <div className="health-row">
+                                <span>Data Freshness</span>
+                                <strong className={liveEvents.length >= 2 ? 'ok' : 'bad'}>{liveEvents.length >= 2 ? 'PASS' : 'WARN'}</strong>
+                            </div>
                         </div>
                     </section>
                 )}
@@ -701,7 +788,7 @@ function App() {
 
             <nav className="bottom-nav">
                 <button className={currentScreen === 'path' ? 'active' : ''} onClick={() => setCurrentScreen('path')}>
-                    <span>🏠</span>
+                    <img src={AURA_LOGO_URL} alt="Aura" className="nav-logo" />
                     Home
                 </button>
                 <button className={currentScreen === 'leaderboard' ? 'active' : ''} onClick={() => setCurrentScreen('leaderboard')}>
