@@ -826,73 +826,77 @@ function App() {
     // Render student or admin layout based on role
     if (user?.role === 'student') {
         return (
-            <StudentLayout
-                currentScreen={currentScreen}
-                onNavigate={setCurrentScreen}
-                pathNodes={pathNodes}
-                users={users}
-                events={events}
-                lbData={lbData}
-                points={points}
-                streak={streak}
-                userName={user?.name || 'Student'}
-                userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'S'}
-                surpriseMission={surpriseMission}
-                teamChallenges={teamChallenges}
-                modal={modal}
-                filteredUsers={filteredUsers}
-                liveTickerItems={liveTickerItems}
-                onPathNodeClick={handleNodeTap}
-                onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
-                onModalClose={closeModal}
-                onLuckySpinClick={playLuckySpin}
-                onEventRegister={registerEvent}
-                onAddTeamChallenge={() => {}}
-                onCompleteTeamChallenge={() => {}}
-                onAwardTeamBonus={() => {}}
-                onClaimBadge={(badge) => showNotif('🎖️ ' + badge + ' — Earned!')}
-                onPathNodeProofUpload={submitMissionProof}
-                onUpdateTeamMember={() => {}}
-                onUpdateSurpriseMission={setSurpriseMission}
-                PathScreenComponent={PathScreen}
-                EventsScreenComponent={EventsScreen}
-                LeaderboardScreenComponent={LeaderboardScreen}
-                UsersScreenComponent={UsersScreen}
-                ProfileScreenComponent={ProfileScreen}
-                StudentSettingsScreenComponent={StudentSettingsScreen}
-                TeamScreenComponent={TeamScreen}
-                ModalComponent={Modal}
-                NotifToastComponent={NotifToast}
-            />
+            <div className="app-shell">
+                <StudentLayout
+                    currentScreen={currentScreen}
+                    onNavigate={setCurrentScreen}
+                    pathNodes={pathNodes}
+                    users={users}
+                    events={events}
+                    lbData={lbData}
+                    points={points}
+                    streak={streak}
+                    userName={user?.name || 'Student'}
+                    userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'S'}
+                    surpriseMission={surpriseMission}
+                    teamChallenges={teamChallenges}
+                    modal={modal}
+                    filteredUsers={filteredUsers}
+                    liveTickerItems={liveTickerItems}
+                    onPathNodeClick={handleNodeTap}
+                    onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
+                    onModalClose={closeModal}
+                    onLuckySpinClick={playLuckySpin}
+                    onEventRegister={registerEvent}
+                    onAddTeamChallenge={() => {}}
+                    onCompleteTeamChallenge={() => {}}
+                    onAwardTeamBonus={() => {}}
+                    onClaimBadge={(badge) => showNotif('🎖️ ' + badge + ' — Earned!')}
+                    onPathNodeProofUpload={submitMissionProof}
+                    onUpdateTeamMember={() => {}}
+                    onUpdateSurpriseMission={setSurpriseMission}
+                    PathScreenComponent={PathScreen}
+                    EventsScreenComponent={EventsScreen}
+                    LeaderboardScreenComponent={LeaderboardScreen}
+                    UsersScreenComponent={UsersScreen}
+                    ProfileScreenComponent={ProfileScreen}
+                    StudentSettingsScreenComponent={StudentSettingsScreen}
+                    TeamScreenComponent={TeamScreen}
+                    ModalComponent={Modal}
+                    NotifToastComponent={NotifToast}
+                />
+            </div>
         );
     } else if (user?.role === 'admin') {
         return (
-            <AdminLayout
-                currentScreen={currentScreen}
-                onNavigate={setCurrentScreen}
-                pathNodes={pathNodes}
-                users={users}
-                adminQueue={adminQueue}
-                adminValidated={adminValidated}
-                adminRejected={adminRejected}
-                userName={user?.name || 'Admin'}
-                userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'A'}
-                modal={modal}
-                onModalClose={closeModal}
-                onPathNodeClick={handleNodeTap}
-                onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
-                onQueueApprove={approveSubmission}
-                onQueueReject={rejectSubmission}
-                onAddPathNode={addActivity}
-                onEditPathNode={() => {}}
-                onPathNodeProofUpload={submitMissionProof}
-                onCreateEvent={createEvent}
-                AdminScreenComponent={AdminScreen}
-                ProfileScreenComponent={ProfileScreen}
-                UsersScreenComponent={UsersScreen}
-                ModalComponent={Modal}
-                NotifToastComponent={NotifToast}
-            />
+            <div className="app-shell">
+                <AdminLayout
+                    currentScreen={currentScreen}
+                    onNavigate={setCurrentScreen}
+                    pathNodes={pathNodes}
+                    users={users}
+                    adminQueue={adminQueue}
+                    adminValidated={adminValidated}
+                    adminRejected={adminRejected}
+                    userName={user?.name || 'Admin'}
+                    userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'A'}
+                    modal={modal}
+                    onModalClose={closeModal}
+                    onPathNodeClick={handleNodeTap}
+                    onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
+                    onQueueApprove={approveSubmission}
+                    onQueueReject={rejectSubmission}
+                    onAddPathNode={addActivity}
+                    onEditPathNode={() => {}}
+                    onPathNodeProofUpload={submitMissionProof}
+                    onCreateEvent={createEvent}
+                    AdminScreenComponent={AdminScreen}
+                    ProfileScreenComponent={ProfileScreen}
+                    UsersScreenComponent={UsersScreen}
+                    ModalComponent={Modal}
+                    NotifToastComponent={NotifToast}
+                />
+            </div>
         );
     }
 

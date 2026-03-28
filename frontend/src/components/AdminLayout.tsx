@@ -29,6 +29,20 @@ interface AdminLayoutProps {
     NotifToastComponent: React.ComponentType<any>;
 }
 
+// Yellow Color Palette
+const COLORS = {
+    primary: '#FFD600',      // Pure bright yellow
+    secondary: '#FFC107',    // Amber yellow
+    light: '#FEF8E7',        // Very light cream
+    background: '#FFFEF0',   // Light warm background
+    text: '#2C3E50',         // Dark text
+    textLight: '#666',       // Light text
+    border: '#FFB300',       // Dark yellow
+    success: '#1ABB9C',      // Teal for success
+    danger: '#E74C3C',       // Red for danger
+    hover: '#FFC107'         // Bright amber yellow for hover
+};
+
 const LoadingSpinner = () => (
     <div style={{
         display: 'flex',
@@ -36,11 +50,11 @@ const LoadingSpinner = () => (
         alignItems: 'center',
         height: '300px',
         fontSize: '18px',
-        color: '#2c3e50'
+        color: COLORS.primary
     }}>
         <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
-            Loading Admin Panel...
+            Loading Admin Dashboard...
         </div>
     </div>
 );
@@ -71,6 +85,8 @@ function AdminLayout({
     ModalComponent,
     NotifToastComponent,
 }: AdminLayoutProps) {
+    const [adminTab, setAdminTab] = React.useState('queue');
+
     const queueStats = {
         pending: adminQueue.length,
         approved: adminValidated.length,
@@ -78,62 +94,64 @@ function AdminLayout({
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0f2f5' }}>
-            {/* Admin Header */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100vh', background: COLORS.background }}>
+            {/* Admin Header - Unified Yellow Theme */}
             <div style={{
-                background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+                background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.secondary} 100%)`,
                 color: 'white',
-                padding: '15px 20px',
-                boxShadow: '0 2px 8px rgba(44, 62, 80, 0.3)'
+                padding: '20px 20px',
+                boxShadow: `0 4px 12px rgba(243, 156, 18, 0.3)`,
+                borderBottom: `3px solid ${COLORS.border}`
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
                     <div>
-                        <h1 style={{ margin: '0', fontSize: '24px', fontWeight: 'bold' }}>🔐 Admin Dashboard</h1>
-                        <p style={{ margin: '5px 0 0 0', fontSize: '14px', opacity: 0.9 }}>
-                            Admin: {userName}
+                        <h1 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold' }}>👨‍💼 Admin Dashboard</h1>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '15px', opacity: 0.95 }}>
+                            Welcome back, <strong>{userName}</strong>!
                         </p>
                     </div>
-                    {/* Queue Stats */}
-                    <div style={{ display: 'flex', gap: '15px', fontSize: '12px' }}>
-                        <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '6px' }}>
-                            <div style={{ fontSize: '18px', color: '#f39c12' }}>⏳</div>
-                            <div>Pending: {queueStats.pending}</div>
+                    {/* Queue Stats - Enhanced Design */}
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.15)', padding: '10px 15px', borderRadius: '10px', backdropFilter: 'blur(10px)' }}>
+                            <div style={{ fontSize: '22px' }}>⏳</div>
+                            <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{queueStats.pending} Pending</div>
                         </div>
-                        <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '6px' }}>
-                            <div style={{ fontSize: '18px', color: '#27ae60' }}>✓</div>
-                            <div>Approved: {queueStats.approved}</div>
+                        <div style={{ textAlign: 'center', background: 'rgba(26, 187, 156, 0.2)', padding: '10px 15px', borderRadius: '10px' }}>
+                            <div style={{ fontSize: '22px' }}>✓</div>
+                            <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{queueStats.approved} Approved</div>
                         </div>
-                        <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '6px' }}>
-                            <div style={{ fontSize: '18px', color: '#e74c3c' }}>✗</div>
-                            <div>Rejected: {queueStats.rejected}</div>
+                        <div style={{ textAlign: 'center', background: 'rgba(231, 76, 60, 0.2)', padding: '10px 15px', borderRadius: '10px' }}>
+                            <div style={{ fontSize: '22px' }}>✗</div>
+                            <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{queueStats.rejected} Rejected</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Main Content */}
-            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', background: '#ecf0f1' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', background: COLORS.background }}>
                 <Suspense fallback={<LoadingSpinner />}>
                     {currentScreen === 'approvals' && (
-                        <div style={{ padding: '20px' }}>
-                            <div style={{ marginBottom: '20px' }}>
-                                <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '20px', fontWeight: 'bold' }}>📋 Approval Queue</h2>
-                                <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>{queueStats.pending} submissions pending review</p>
+                        <div style={{ padding: '25px' }}>
+                            <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>📋 Approval Queue</h2>
+                                <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>{queueStats.pending} submissions awaiting your review</p>
                             </div>
 
                             {/* Approval Queue */}
                             {adminQueue.length === 0 ? (
                                 <div style={{
                                     background: 'white',
-                                    borderRadius: '12px',
-                                    padding: '40px 20px',
+                                    borderRadius: '16px',
+                                    padding: '50px 20px',
                                     textAlign: 'center',
-                                    color: '#999',
-                                    border: '2px dashed #ddd'
+                                    color: COLORS.primary,
+                                    border: `2px dashed ${COLORS.border}`,
+                                    boxShadow: `0 2px 8px rgba(243, 156, 18, 0.1)`
                                 }}>
-                                    <div style={{ fontSize: '2rem', marginBottom: '10px' }}>✅</div>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>All caught up!</div>
-                                    <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>No pending submissions to review</p>
+                                    <div style={{ fontSize: '3rem', marginBottom: '15px' }}>✅</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: COLORS.text }}>All Caught Up!</div>
+                                    <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: COLORS.textLight }}>No pending submissions to review</p>
                                 </div>
                             ) : (
                                 <div style={{ display: 'grid', gap: '12px' }}>
@@ -142,53 +160,58 @@ function AdminLayout({
                                             key={submission.id}
                                             style={{
                                                 background: 'white',
-                                                borderRadius: '12px',
-                                                padding: '16px',
-                                                border: '1px solid #ddd',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                                transition: 'all 0.2s'
+                                                borderRadius: '14px',
+                                                padding: '18px',
+                                                border: `2px solid ${COLORS.light}`,
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                                                transition: 'all 0.3s',
+                                                borderLeft: `5px solid ${COLORS.primary}`
                                             }}
+                                            onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'}
+                                            onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'}
                                         >
                                             {/* Student Info */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
                                                 <div
                                                     style={{
-                                                        width: '40px',
-                                                        height: '40px',
+                                                        width: '45px',
+                                                        height: '45px',
                                                         borderRadius: '50%',
-                                                        background: avatarColor(submission.name),
+                                                        background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.secondary})`,
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
                                                         color: 'white',
                                                         fontWeight: 'bold',
-                                                        fontSize: '14px'
+                                                        fontSize: '16px',
+                                                        boxShadow: `0 2px 8px rgba(243, 156, 18, 0.3)`
                                                     }}
                                                 >
                                                     {submission.initials}
                                                 </div>
                                                 <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 'bold', color: '#2c3e50', fontSize: '15px' }}>{submission.name}</div>
-                                                    <div style={{ fontSize: '12px', color: '#666' }}>{submission.time}</div>
+                                                    <div style={{ fontWeight: 'bold', color: COLORS.text, fontSize: '16px' }}>{submission.name}</div>
+                                                    <div style={{ fontSize: '12px', color: COLORS.textLight }}>{submission.time}</div>
                                                 </div>
                                                 <div style={{
-                                                    background: '#f39c12',
+                                                    background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.secondary})`,
                                                     color: 'white',
-                                                    padding: '6px 12px',
-                                                    borderRadius: '20px',
+                                                    padding: '8px 14px',
+                                                    borderRadius: '24px',
                                                     fontWeight: 'bold',
-                                                    fontSize: '13px'
+                                                    fontSize: '13px',
+                                                    boxShadow: `0 2px 6px rgba(243, 156, 18, 0.3)`
                                                 }}>
                                                     +{submission.pts} pts
                                                 </div>
                                             </div>
 
                                             {/* Task Info */}
-                                            <div style={{ marginBottom: '12px' }}>
-                                                <div style={{ fontWeight: 'bold', color: '#333', fontSize: '14px', marginBottom: '4px' }}>
+                                            <div style={{ marginBottom: '14px' }}>
+                                                <div style={{ fontWeight: 'bold', color: COLORS.text, fontSize: '15px', marginBottom: '5px' }}>
                                                     {submission.task}
                                                 </div>
-                                                <div style={{ color: '#666', fontSize: '13px', lineHeight: '1.4' }}>
+                                                <div style={{ color: COLORS.textLight, fontSize: '13px', lineHeight: '1.5' }}>
                                                     {submission.desc}
                                                 </div>
                                             </div>
@@ -210,40 +233,42 @@ function AdminLayout({
                                             )}
 
                                             {/* Action Buttons */}
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                                 <button
                                                     onClick={() => onQueueApprove(submission.id)}
                                                     style={{
-                                                        background: '#27ae60',
+                                                        background: COLORS.success,
                                                         color: 'white',
                                                         border: 'none',
-                                                        padding: '10px 16px',
-                                                        borderRadius: '8px',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
                                                         fontWeight: 'bold',
                                                         cursor: 'pointer',
                                                         fontSize: '14px',
-                                                        transition: 'background 0.2s'
+                                                        transition: 'all 0.3s',
+                                                        boxShadow: `0 2px 6px rgba(26, 187, 156, 0.3)`
                                                     }}
-                                                    onMouseOver={(e) => e.currentTarget.style.background = '#229954'}
-                                                    onMouseOut={(e) => e.currentTarget.style.background = '#27ae60'}
+                                                    onMouseOver={(e) => {e.currentTarget.style.background = '#148f77'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(26, 187, 156, 0.4)';}}
+                                                    onMouseOut={(e) => {e.currentTarget.style.background = COLORS.success; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `0 2px 6px rgba(26, 187, 156, 0.3)`;}}
                                                 >
                                                     ✓ APPROVE
                                                 </button>
                                                 <button
                                                     onClick={() => onQueueReject(submission.id)}
                                                     style={{
-                                                        background: '#e74c3c',
+                                                        background: COLORS.danger,
                                                         color: 'white',
                                                         border: 'none',
-                                                        padding: '10px 16px',
-                                                        borderRadius: '8px',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
                                                         fontWeight: 'bold',
                                                         cursor: 'pointer',
                                                         fontSize: '14px',
-                                                        transition: 'background 0.2s'
+                                                        transition: 'all 0.3s',
+                                                        boxShadow: `0 2px 6px rgba(231, 76, 60, 0.3)`
                                                     }}
-                                                    onMouseOver={(e) => e.currentTarget.style.background = '#c0392b'}
-                                                    onMouseOut={(e) => e.currentTarget.style.background = '#e74c3c'}
+                                                    onMouseOver={(e) => {e.currentTarget.style.background = '#c0392b'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(231, 76, 60, 0.4)';}}
+                                                    onMouseOut={(e) => {e.currentTarget.style.background = COLORS.danger; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `0 2px 6px rgba(231, 76, 60, 0.3)`;}}
                                                 >
                                                     ✗ REJECT
                                                 </button>
@@ -255,18 +280,21 @@ function AdminLayout({
                         </div>
                     )}
                     {currentScreen === 'paths' && (
-                        <div style={{ padding: '20px' }}>
-                            <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '20px', fontWeight: 'bold' }}>📋 Manage Learning Path</h2>
-                            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px' }}>Configure the activity path for students</p>
+                        <div style={{ padding: '25px' }}>
+                            <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>📋 Manage Learning Path</h2>
+                                <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>Configure activities that students complete</p>
+                            </div>
 
                             <div style={{
                                 background: 'white',
-                                borderRadius: '12px',
-                                padding: '20px',
+                                borderRadius: '14px',
+                                padding: '22px',
                                 marginBottom: '20px',
-                                border: '1px solid #ddd'
+                                border: `2px solid ${COLORS.light}`,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                             }}>
-                                <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '16px', color: '#2c3e50' }}>✨ Path Overview</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '18px', color: COLORS.text }}>✨ Path Overview</div>
                                 {pathNodes.length === 0 ? (
                                     <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
                                         No activities in path yet
@@ -315,14 +343,82 @@ function AdminLayout({
                         </div>
                     )}
                     {currentScreen === 'users' && (
-                        <div style={{ padding: '20px' }}>
-                            <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '20px', fontWeight: 'bold' }}>👥 Student Management</h2>
-                            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px' }}>View and manage all registered students</p>
-                            <UsersScreenComponent users={users} onUserClick={onUserClick} />
+                        <div style={{ padding: '25px' }}>
+                            <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>👥 Student Management</h2>
+                                <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>View and manage all registered students</p>
+                            </div>
+                            <div style={{ display: 'grid', gap: '12px' }}>
+                                {users.map((user) => (
+                                    <div
+                                        key={user.name}
+                                        onClick={() => onUserClick(user)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px',
+                                            padding: '16px',
+                                            background: 'white',
+                                            borderRadius: '12px',
+                                            border: `2px solid ${COLORS.light}`,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s',
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 214, 0, 0.2)';
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                                            e.currentTarget.style.transform = 'none';
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                width: '45px',
+                                                height: '45px',
+                                                borderRadius: '50%',
+                                                background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.secondary})`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: '#222',
+                                                fontWeight: 'bold',
+                                                fontSize: '16px',
+                                                boxShadow: `0 2px 8px rgba(255, 214, 0, 0.3)`
+                                            }}
+                                        >
+                                            {user.initials}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 'bold', color: COLORS.text, fontSize: '15px' }}>{user.name}</div>
+                                            <div style={{ fontSize: '12px', color: COLORS.textLight }}>{user.domain} • {user.pts} pts</div>
+                                            {user.badges && user.badges.length > 0 && (
+                                                <div style={{ fontSize: '12px', marginTop: '4px' }}>{user.badges.join(', ')}</div>
+                                            )}
+                                        </div>
+                                        <div style={{
+                                            padding: '4px 8px',
+                                            borderRadius: '8px',
+                                            background: user.available ? `${COLORS.primary}20` : '#f0f0f0',
+                                            color: user.available ? COLORS.primary : '#999',
+                                            fontSize: '12px',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            {user.available ? '✓ Active' : 'Offline'}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                     {currentScreen === 'profile' && (
-                        <div style={{ padding: '20px' }}>
+                        <div style={{ padding: '25px' }}>
+                            <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>👤 Admin Profile</h2>
+                                <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>Manage your admin account</p>
+                            </div>
                             <ProfileScreenComponent
                                 userName={userName}
                                 userInitials={userInitials}
@@ -333,22 +429,22 @@ function AdminLayout({
                 </Suspense>
             </div>
 
-            {/* Admin Navigation - Dark theme */}
+            {/* Admin Navigation - Unified Yellow Theme */}
             <div style={{
                 position: 'fixed',
                 bottom: 0,
                 left: 0,
                 right: 0,
                 background: 'white',
-                borderTop: '2px solid #2c3e50',
-                boxShadow: '0 -2px 10px rgba(44, 62, 80, 0.15)',
+                borderTop: `3px solid ${COLORS.primary}`,
+                boxShadow: `0 -4px 16px rgba(243, 156, 18, 0.15)`,
                 display: 'flex',
                 justifyContent: 'space-around',
-                padding: '8px 0',
+                padding: '10px 0',
                 zIndex: 100
             }}>
                 {[
-                    { id: 'approvals', label: 'Approvals', icon: '✓' },
+                    { id: 'approvals', label: 'Approvals', icon: '✔️' },
                     { id: 'paths', label: 'Paths', icon: '📋' },
                     { id: 'users', label: 'Users', icon: '👥' },
                     { id: 'profile', label: 'Profile', icon: '👤' },
@@ -358,18 +454,31 @@ function AdminLayout({
                         onClick={() => onNavigate(item.id)}
                         style={{
                             flex: 1,
-                            background: currentScreen === item.id ? '#e8ecf1' : 'transparent',
+                            background: currentScreen === item.id ? `linear-gradient(135deg, ${COLORS.primary}15, ${COLORS.secondary}15)` : 'transparent',
                             border: 'none',
-                            color: currentScreen === item.id ? '#2c3e50' : '#666',
-                            padding: '8px',
+                            color: currentScreen === item.id ? COLORS.primary : COLORS.textLight,
+                            padding: '10px',
                             cursor: 'pointer',
                             fontSize: '12px',
-                            borderTop: currentScreen === item.id ? '3px solid #2c3e50' : 'none',
-                            transition: 'all 0.2s'
+                            borderTop: currentScreen === item.id ? `4px solid ${COLORS.primary}` : 'none',
+                            transition: 'all 0.3s',
+                            fontWeight: currentScreen === item.id ? '600' : 'normal'
+                        }}
+                        onMouseOver={(e) => {
+                            if (currentScreen !== item.id) {
+                                e.currentTarget.style.background = `${COLORS.primary}08`;
+                                e.currentTarget.style.color = COLORS.primary;
+                            }
+                        }}
+                        onMouseOut={(e) => {
+                            if (currentScreen !== item.id) {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = COLORS.textLight;
+                            }
                         }}
                     >
-                        <div style={{ fontSize: '18px' }}>{item.icon}</div>
-                        <div style={{ fontSize: '11px', fontWeight: currentScreen === item.id ? 'bold' : 'normal' }}>
+                        <div style={{ fontSize: '20px', marginBottom: '2px' }}>{item.icon}</div>
+                        <div style={{ fontSize: '11px' }}>
                             {item.label}
                         </div>
                     </button>

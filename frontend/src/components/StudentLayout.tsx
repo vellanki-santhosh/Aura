@@ -2,6 +2,20 @@ import React, { Suspense } from 'react';
 import type { PathNode, UserData, AdminQueueItem, Event, SurpriseMission, TeamChallenge, LiveTickerItem, ModalState } from '../App';
 import type { LeaderboardEntry } from '../data/mockData';
 
+// Unified Yellow Color Palette
+const COLORS = {
+    primary: '#FFD600',      // Pure bright yellow
+    secondary: '#FFC107',    // Amber yellow
+    light: '#FEF8E7',        // Very light cream
+    background: '#FFFEF0',   // Light warm background
+    text: '#2C3E50',         // Dark text
+    textLight: '#666',       // Light text
+    border: '#FFB300',       // Dark yellow
+    success: '#1ABB9C',      // Teal for success
+    accent: '#3498DB',       // Blue for accent
+    hover: '#FFC107'         // Bright amber yellow for hover
+};
+
 interface StudentLayoutProps {
     currentScreen: string;
     onNavigate: (screen: string) => void;
@@ -48,11 +62,11 @@ const LoadingSpinner = () => (
         alignItems: 'center',
         height: '300px',
         fontSize: '18px',
-        color: '#2ECC71'
+        color: COLORS.primary
     }}>
         <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
-            Loading...
+            Loading Student Hub...
         </div>
     </div>
 );
@@ -96,23 +110,24 @@ function StudentLayout({
     NotifToastComponent,
 }: StudentLayoutProps) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f8fff9' }}>
-            {/* Student Header */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100vh', background: COLORS.background }}>
+            {/* Student Header - Unified Yellow Theme */}
             <div style={{
-                background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.secondary} 100%)`,
                 color: 'white',
-                padding: '15px 20px',
+                padding: '20px 20px',
                 textAlign: 'center',
-                boxShadow: '0 2px 8px rgba(46, 204, 113, 0.2)'
+                boxShadow: `0 4px 12px rgba(243, 156, 18, 0.3)`,
+                borderBottom: `3px solid ${COLORS.border}`
             }}>
-                <h1 style={{ margin: '0', fontSize: '24px', fontWeight: 'bold' }}>🌟 Student Hub</h1>
-                <p style={{ margin: '5px 0 0 0', fontSize: '14px', opacity: 0.9 }}>
-                    Welcome, {userName}! • {points} pts • {streak}🔥
+                <h1 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold' }}>🌟 Student Hub</h1>
+                <p style={{ margin: '8px 0 0 0', fontSize: '15px', opacity: 0.95 }}>
+                    Welcome, <strong>{userName}</strong>! • <span style={{background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px'}}>{points} pts</span> • <span style={{fontSize: '16px'}}>{streak}🔥</span>
                 </p>
             </div>
 
             {/* Main Content */}
-            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', background: COLORS.background }}>
                 <Suspense fallback={<LoadingSpinner />}>
                     {currentScreen === 'path' && <PathScreenComponent pathNodes={pathNodes} onPathNodeClick={onPathNodeClick} surpriseMission={surpriseMission} onLuckySpinClick={onLuckySpinClick} onUpdateSurpriseMission={onUpdateSurpriseMission} onPathNodeProofUpload={onPathNodeProofUpload} />}
                     {currentScreen === 'events' && <EventsScreenComponent events={events} onEventRegister={onEventRegister} />}
@@ -124,19 +139,20 @@ function StudentLayout({
                 </Suspense>
             </div>
 
-            {/* Student Navigation - Green theme */}
+            {/* Student Navigation - Unified Yellow Theme */}
             <div style={{
                 position: 'fixed',
                 bottom: 0,
                 left: 0,
                 right: 0,
                 background: 'white',
-                borderTop: '2px solid #2ECC71',
-                boxShadow: '0 -2px 10px rgba(46, 204, 113, 0.1)',
+                borderTop: `3px solid ${COLORS.primary}`,
+                boxShadow: `0 -4px 16px rgba(243, 156, 18, 0.15)`,
                 display: 'flex',
                 justifyContent: 'space-around',
-                padding: '8px 0',
-                zIndex: 100
+                padding: '10px 0',
+                zIndex: 100,
+                overflowX: 'auto'
             }}>
                 {[
                     { id: 'path', label: 'Path', icon: '🧭' },
@@ -152,18 +168,32 @@ function StudentLayout({
                         onClick={() => onNavigate(item.id)}
                         style={{
                             flex: 1,
-                            background: currentScreen === item.id ? '#e8f8f1' : 'transparent',
+                            minWidth: '70px',
+                            background: currentScreen === item.id ? `linear-gradient(135deg, ${COLORS.primary}15, ${COLORS.secondary}15)` : 'transparent',
                             border: 'none',
-                            color: currentScreen === item.id ? '#2ECC71' : '#666',
-                            padding: '8px',
+                            color: currentScreen === item.id ? COLORS.primary : COLORS.textLight,
+                            padding: '10px 4px',
                             cursor: 'pointer',
                             fontSize: '12px',
-                            borderTop: currentScreen === item.id ? '3px solid #2ECC71' : 'none',
-                            transition: 'all 0.2s'
+                            borderTop: currentScreen === item.id ? `4px solid ${COLORS.primary}` : 'none',
+                            transition: 'all 0.3s',
+                            fontWeight: currentScreen === item.id ? '600' : 'normal'
+                        }}
+                        onMouseOver={(e) => {
+                            if (currentScreen !== item.id) {
+                                e.currentTarget.style.background = `${COLORS.primary}08`;
+                                e.currentTarget.style.color = COLORS.primary;
+                            }
+                        }}
+                        onMouseOut={(e) => {
+                            if (currentScreen !== item.id) {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = COLORS.textLight;
+                            }
                         }}
                     >
-                        <div style={{ fontSize: '18px' }}>{item.icon}</div>
-                        <div style={{ fontSize: '11px', fontWeight: currentScreen === item.id ? 'bold' : 'normal' }}>
+                        <div style={{ fontSize: '20px', marginBottom: '2px' }}>{item.icon}</div>
+                        <div style={{ fontSize: '11px' }}>
                             {item.label}
                         </div>
                     </button>
