@@ -112,35 +112,223 @@ function AdminLayout({
             </div>
 
             {/* Main Content */}
-            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', background: '#ecf0f1' }}>
                 <Suspense fallback={<LoadingSpinner />}>
                     {currentScreen === 'approvals' && (
-                        <AdminScreenComponent
-                            adminQueue={adminQueue}
-                            adminValidated={adminValidated}
-                            adminRejected={adminRejected}
-                            onQueueApprove={onQueueApprove}
-                            onQueueReject={onQueueReject}
-                            onPathNodeClick={onPathNodeClick}
-                        />
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ marginBottom: '20px' }}>
+                                <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '20px', fontWeight: 'bold' }}>📋 Approval Queue</h2>
+                                <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>{queueStats.pending} submissions pending review</p>
+                            </div>
+
+                            {/* Approval Queue */}
+                            {adminQueue.length === 0 ? (
+                                <div style={{
+                                    background: 'white',
+                                    borderRadius: '12px',
+                                    padding: '40px 20px',
+                                    textAlign: 'center',
+                                    color: '#999',
+                                    border: '2px dashed #ddd'
+                                }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '10px' }}>✅</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>All caught up!</div>
+                                    <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>No pending submissions to review</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '12px' }}>
+                                    {adminQueue.map(submission => (
+                                        <div
+                                            key={submission.id}
+                                            style={{
+                                                background: 'white',
+                                                borderRadius: '12px',
+                                                padding: '16px',
+                                                border: '1px solid #ddd',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {/* Student Info */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                                <div
+                                                    style={{
+                                                        width: '40px',
+                                                        height: '40px',
+                                                        borderRadius: '50%',
+                                                        background: avatarColor(submission.name),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        color: 'white',
+                                                        fontWeight: 'bold',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {submission.initials}
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontWeight: 'bold', color: '#2c3e50', fontSize: '15px' }}>{submission.name}</div>
+                                                    <div style={{ fontSize: '12px', color: '#666' }}>{submission.time}</div>
+                                                </div>
+                                                <div style={{
+                                                    background: '#f39c12',
+                                                    color: 'white',
+                                                    padding: '6px 12px',
+                                                    borderRadius: '20px',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '13px'
+                                                }}>
+                                                    +{submission.pts} pts
+                                                </div>
+                                            </div>
+
+                                            {/* Task Info */}
+                                            <div style={{ marginBottom: '12px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#333', fontSize: '14px', marginBottom: '4px' }}>
+                                                    {submission.task}
+                                                </div>
+                                                <div style={{ color: '#666', fontSize: '13px', lineHeight: '1.4' }}>
+                                                    {submission.desc}
+                                                </div>
+                                            </div>
+
+                                            {/* Evidence Section */}
+                                            {submission.hasImg && (
+                                                <div style={{
+                                                    background: '#e8f5e9',
+                                                    padding: '12px',
+                                                    borderRadius: '8px',
+                                                    marginBottom: '12px',
+                                                    textAlign: 'center',
+                                                    color: '#27ae60',
+                                                    fontSize: '13px',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    📸 Photo evidence attached
+                                                </div>
+                                            )}
+
+                                            {/* Action Buttons */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                                <button
+                                                    onClick={() => onQueueApprove(submission.id)}
+                                                    style={{
+                                                        background: '#27ae60',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        padding: '10px 16px',
+                                                        borderRadius: '8px',
+                                                        fontWeight: 'bold',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        transition: 'background 0.2s'
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#229954'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = '#27ae60'}
+                                                >
+                                                    ✓ APPROVE
+                                                </button>
+                                                <button
+                                                    onClick={() => onQueueReject(submission.id)}
+                                                    style={{
+                                                        background: '#e74c3c',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        padding: '10px 16px',
+                                                        borderRadius: '8px',
+                                                        fontWeight: 'bold',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        transition: 'background 0.2s'
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#c0392b'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = '#e74c3c'}
+                                                >
+                                                    ✗ REJECT
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
                     {currentScreen === 'paths' && (
                         <div style={{ padding: '20px' }}>
-                            <h2>📋 Manage Paths</h2>
-                            <div style={{ background: 'white', padding: '20px', borderRadius: '8px', marginTop: '10px' }}>
-                                <p>Path management feature coming soon...</p>
+                            <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '20px', fontWeight: 'bold' }}>📋 Manage Learning Path</h2>
+                            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px' }}>Configure the activity path for students</p>
+
+                            <div style={{
+                                background: 'white',
+                                borderRadius: '12px',
+                                padding: '20px',
+                                marginBottom: '20px',
+                                border: '1px solid #ddd'
+                            }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '16px', color: '#2c3e50' }}>✨ Path Overview</div>
+                                {pathNodes.length === 0 ? (
+                                    <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
+                                        No activities in path yet
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'grid', gap: '10px' }}>
+                                        {pathNodes.map((node, idx) => (
+                                            <div
+                                                key={node.id}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '12px',
+                                                    padding: '12px',
+                                                    background: '#f8f9fa',
+                                                    borderRadius: '8px',
+                                                    border: `2px solid ${node.state === 'done' ? '#27ae60' : node.state === 'active' ? '#f39c12' : '#bdc3c7'}`
+                                                }}
+                                            >
+                                                <div style={{ fontSize: '24px' }}>{node.icon}</div>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2c3e50' }}>
+                                                        {idx + 1}. {node.label}
+                                                    </div>
+                                                    <div style={{ fontSize: '12px', color: '#666' }}>
+                                                        {node.pts} • Status: <strong>{node.state}</strong>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => onAddPathNode(node)}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        fontSize: '18px',
+                                                        padding: '8px'
+                                                    }}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
                     {currentScreen === 'users' && (
-                        <UsersScreenComponent users={users} onUserClick={onUserClick} />
+                        <div style={{ padding: '20px' }}>
+                            <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '20px', fontWeight: 'bold' }}>👥 Student Management</h2>
+                            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px' }}>View and manage all registered students</p>
+                            <UsersScreenComponent users={users} onUserClick={onUserClick} />
+                        </div>
                     )}
                     {currentScreen === 'profile' && (
-                        <ProfileScreenComponent
-                            userName={userName}
-                            userInitials={userInitials}
-                            isAdmin={true}
-                        />
+                        <div style={{ padding: '20px' }}>
+                            <ProfileScreenComponent
+                                userName={userName}
+                                userInitials={userInitials}
+                                isAdmin={true}
+                            />
+                        </div>
                     )}
                 </Suspense>
             </div>
