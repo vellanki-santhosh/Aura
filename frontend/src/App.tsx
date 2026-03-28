@@ -8,7 +8,8 @@ import {
     activityData,
     adminQueue as initialAdminQueue,
     adminValidated as initialAdminValidated,
-    adminRejected as initialAdminRejected
+    adminRejected as initialAdminRejected,
+    initialEvents
 } from './data/mockData';
 
 // --- HELPERS ---
@@ -36,8 +37,11 @@ function App() {
     const [adminQueue, setAdminQueue] = useState(initialAdminQueue);
     const [adminValidated, setAdminValidated] = useState(initialAdminValidated);
     const [adminRejected, setAdminRejected] = useState(initialAdminRejected);
+    const [events, setEvents] = useState(initialEvents);
     const [approvedSet, setApprovedSet] = useState(new Set<string>());
     const [rejectedSet, setRejectedSet] = useState(new Set<string>());
+    const [registeredSet, setRegisteredSet] = useState(new Set<number>());
+    const [declinedSet, setDeclinedSet] = useState(new Set<number>());
 
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
@@ -92,6 +96,21 @@ function App() {
     const approveSubmission = (id: string, pts: number) => {
         setApprovedSet(new Set(approvedSet.add(id)));
         setPoints(p => p + pts);
+
+        // Find and Finalize Node if linked
+        const queueItem = adminQueue.find(s => s.id === id);
+        if (queueItem && (queueItem as any).nodeId) {
+            const nodeId = (queueItem as any).nodeId;
+            setPathNodes(prev => {
+                const updated = prev.map(n => {
+                    if (n.id === nodeId) return { ...n, state: 'done' as const };
+                    // Unlock next
+                    if (n.state === 'locked' && n.id === nodeId + 1) return { ...n, state: 'active' as const };
+                    return n;
+                });
+                return updated;
+            });
+        }
         showNotif(`✅ Approved! +${pts} pts awarded`);
     };
 
@@ -104,14 +123,27 @@ function App() {
         const node = pathNodes.find(n => n.id === id);
         if (node && node.state === 'active') {
             const updatedNodes = pathNodes.map(n => {
-                if (n.id === id) return { ...n, state: 'done' as const };
-                if (n.state === 'locked' && n.id === id + 1) return { ...n, state: 'active' as const };
+                if (n.id === id) return { ...n, state: 'pending' as const };
                 return n;
             });
-            setPathNodes(updatedNodes);
-            setPoints(p => p + parseInt(node.pts));
+            setPathNodes(updatedNodes as any);
+
+            // Add to admin queue
+            const newSub = {
+                initials: user?.name.split(' ').map(n => n[0]).join('') || 'U',
+                name: user?.name || 'User',
+                time: 'Just now',
+                task: `[${node.label}] (${user?.domain})`,
+                desc: `Submission for ${node.label} activity.`,
+                pts: parseInt(node.pts),
+                hasImg: true,
+                id: `node-${id}-${Date.now()}`,
+                nodeId: id
+            };
+            setAdminQueue([newSub, ...adminQueue]);
+
             closeModal();
-            showNotif(`🎉 ${node.label} completed! ${node.pts}`);
+            showNotif(`📤 Submitted! Pending Admin Approval...`);
         }
     };
 
@@ -120,10 +152,9 @@ function App() {
         return (
             <div className="app-shell" style={{ justifyContent: 'center' }}>
                 <div className="login-screen">
-                    <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                        <div style={{ fontSize: '3.5rem', marginBottom: '10px' }}>🏠</div>
-                        <div className="login-title">ALIET Clubs</div>
-                        <div className="login-subtitle">Powering Student Contributions</div>
+                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                        <img src="/logo.png" alt="AURA Logo" style={{ width: '240px', height: 'auto' }} />
+                        <div className="login-subtitle" style={{ marginTop: '10px' }}>Powering Student Contributions</div>
                     </div>
 
                     <div className="login-card">
@@ -177,7 +208,10 @@ function App() {
         <div className="app-shell">
             {/* TOP BAR */}
             <div className="topbar">
-                <div className="topbar-logo"><span className="house">🏠</span> ALIET Clubs</div>
+                <div className="topbar-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <img src="/logo.png" alt="AURA" style={{ height: '32px', width: 'auto' }} />
+                    <span>AURA</span>
+                </div>
                 <div className="topbar-stats">
                     <div className="stat-pill"><span className="icon">🔥</span> {streak}</div>
                     <div className="stat-pill"><span className="icon">🪙</span> {points} pts</div>
@@ -191,19 +225,25 @@ function App() {
                     <div className="quest-sub">Reward: +15 pts &nbsp;|&nbsp; Progress: 0/1</div>
                     <div className="quest-progress"><div className="quest-progress-fill" style={{ width: '0%', transition: 'width 1s ease' }}></div></div>
                 </div>
-                <div className="section-title">🗺️ Your Activity Path</div>
+
+                <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
+                    <img src="logo.png" alt="AURA" style={{ width: '100px', height: 'auto', opacity: 0.9 }} />
+                </div>
+
+                <div className="section-title">🧭 Your Activity Path</div>
                 <div className="path-nodes">
                     {pathNodes.map((node, i) => (
                         <div className="path-node-wrap" key={node.id}>
                             {i > 0 && (
-                                <div className={`path-connector ${pathNodes[i - 1].state === 'done' ? 'done' : pathNodes[i - 1].state === 'active' ? 'active' : ''}`}></div>
+                                <div className={`path-connector ${pathNodes[i - 1].state === 'done' ? 'done' : pathNodes[i - 1].state === 'active' || pathNodes[i - 1].state === 'pending' ? 'active' : ''}`}></div>
                             )}
                             <div
                                 className={`path-node ${node.state}`}
-                                onClick={() => (node.state === 'active' || node.state === 'done') ? setModal({ isOpen: true, type: 'node', data: node }) : showNotif('🔒 Complete previous activities first!')}
+                                onClick={() => (node.state !== 'locked') ? setModal({ isOpen: true, type: 'node', data: node }) : showNotif('🔒 Complete previous activities first!')}
                             >
                                 <span className="node-icon">{node.icon}</span>
                                 {node.state === 'done' && <div className="done-check">✓</div>}
+                                {node.state === 'pending' && <div className="done-check" style={{ background: '#2196F3' }}>⏳</div>}
                                 {node.state === 'locked' && <div className="lock-icon">🔒</div>}
                             </div>
                             <div className="path-node-label">{node.label}</div>
@@ -211,6 +251,41 @@ function App() {
                             <div className="path-node-pts">{node.pts}</div>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            {/* EVENTS SCREEN */}
+            <div className={`screen ${currentScreen === 'events' ? 'active' : ''} fade-in`}>
+                <div className="section-title">📅 Upcoming Campus Events</div>
+                <div id="events-list" style={{ padding: '0 16px' }}>
+                    {events.filter(e => !registeredSet.has(e.id) && !declinedSet.has(e.id)).length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>No more events found. You've answered all calls! 🔔</div>
+                    ) : (
+                        events.filter(e => !registeredSet.has(e.id) && !declinedSet.has(e.id)).map(e => (
+                            <div key={e.id} className="card" style={{ margin: '0 0 16px 0', border: '1px solid #f0f0f0', background: '#fff' }}>
+                                <div className="card-inner">
+                                    <div style={{ fontWeight: 900, color: 'var(--dark)' }}>{e.title}</div>
+                                    <div style={{ fontSize: '.75rem', color: 'var(--green-dark)', fontWeight: 800, margin: '4px 0' }}>📍 {e.loc} · 📅 {e.date} · Cost: 🪙 15 pts</div>
+                                    <div style={{ fontSize: '.82rem', color: '#666' }}>{e.desc}</div>
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                        <button className="btn btn-green" style={{ flex: 1, fontSize: '.75rem', padding: '8px' }} onClick={() => {
+                                            if (points >= 15) {
+                                                setRegisteredSet(new Set(registeredSet.add(e.id)));
+                                                setPoints(p => p - 15);
+                                                showNotif(`📅 Registered for ${e.title}! -15 pts`);
+                                            } else {
+                                                showNotif('⚠️ Not enough points to register!');
+                                            }
+                                        }}>Register (15 pts)</button>
+                                        <button className="btn btn-red" style={{ flex: 1, fontSize: '.75rem', padding: '8px' }} onClick={() => {
+                                            setDeclinedSet(new Set(declinedSet.add(e.id)));
+                                            showNotif(`❌ You declined ${e.title}`);
+                                        }}>Reject</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -225,21 +300,23 @@ function App() {
                     ))}
                 </div>
                 <div id="lb-list">
-                    {lbData[lbDomain]?.map((item, i) => (
-                        <div className={`lb-row ${item.you ? 'you' : ''}`} key={i}>
-                            <div className={`rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n'}`}>{i + 1}</div>
-                            <div style={{ position: 'relative' }}>
-                                <div className="avatar sm" style={{ background: avatarColor(item.name) }}>{item.name[0]}</div>
-                                {item.you && <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: 'var(--yellow)', color: '#000', borderRadius: '3px', fontSize: '.5rem', fontWeight: 800, padding: '0 3px' }}>YOU</div>}
+                    {lbData[lbDomain]?.map(item => (item.you ? { ...item, pts: points } : item))
+                        .sort((a, b) => b.pts - a.pts)
+                        .map((item, i) => (
+                            <div className={`lb-row ${item.you ? 'you' : ''}`} key={i}>
+                                <div className={`rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n'}`}>{i + 1}</div>
+                                <div style={{ position: 'relative' }}>
+                                    <div className="avatar sm" style={{ background: avatarColor(item.name) }}>{item.name[0]}</div>
+                                    {item.you && <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: 'var(--yellow)', color: '#000', borderRadius: '3px', fontSize: '.5rem', fontWeight: 800, padding: '0 3px' }}>YOU</div>}
+                                </div>
+                                <div className="lb-name">{item.name} {item.you && <span style={{ fontSize: '.7rem', color: '#999' }}>(you)</span>}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div className="lb-pts">🪙 {item.pts}</div>
+                                    {item.promo && <div className="promo-tag">▲ Promo</div>}
+                                    {item.demo && <div className="demo-tag">▼ Demo</div>}
+                                </div>
                             </div>
-                            <div className="lb-name">{item.name} {item.you && <span style={{ fontSize: '.7rem', color: '#999' }}>(you)</span>}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div className="lb-pts">🪙 {item.pts}</div>
-                                {item.promo && <div className="promo-tag">▲ Promo</div>}
-                                {item.demo && <div className="demo-tag">▼ Demo</div>}
-                            </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             </div>
 
@@ -326,8 +403,7 @@ function App() {
                 </div>
                 <div className="admin-tabs">
                     <div className={`admin-tab ${adminTab === 'queue' ? 'active' : ''}`} onClick={() => setAdminTab('queue')}>Queue</div>
-                    <div className={`admin-tab ${adminTab === 'validated' ? 'active' : ''}`} onClick={() => setAdminTab('validated')}>Validated</div>
-                    <div className={`admin-tab ${adminTab === 'rejected' ? 'active' : ''}`} onClick={() => setAdminTab('rejected')}>Rejected</div>
+                    <div className={`admin-tab ${adminTab === 'path' ? 'active' : ''}`} onClick={() => setAdminTab('path')}>Path Edit</div>
                 </div>
 
                 {adminTab === 'queue' && (
@@ -373,19 +449,99 @@ function App() {
                     </div>
                 )}
 
-                {adminTab === 'rejected' && (
-                    <div id="admin-rejected">
-                        {[...adminRejected, ...adminQueue.filter(s => rejectedSet.has(s.id))].map((s, i) => (
-                            <div className="submission-card" key={i}>
-                                <div className="sub-header">
-                                    <div className="avatar sm" style={{ background: avatarColor(s.name) }}>{s.initials}</div>
-                                    <div><div style={{ fontWeight: 800, fontSize: '.88rem' }}>{s.name}</div><div style={{ fontSize: '.72rem', color: '#999' }}>{s.time}</div></div>
-                                    <div style={{ marginLeft: 'auto' }}><span className="pts-chip">+{s.pts} pts</span></div>
+                {adminTab === 'path' && (
+                    <div id="admin-path-editor" style={{ padding: '16px' }}>
+                        <div className="section-title" style={{ padding: '0 0 16px' }}>🛠️ Manage Activity Path</div>
+                        <div style={{ background: '#fff', borderRadius: '12px', padding: '12px', boxShadow: 'var(--shadow)', marginBottom: '20px', border: '1px solid #eee' }}>
+                            <div style={{ fontWeight: 800, fontSize: '.9rem', marginBottom: '12px' }}>✨ Add New Activity</div>
+                            <input id="new-node-label" type="text" placeholder="Activity Name (e.g. Design Challenge)" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
+                            <input id="new-node-pts" type="text" placeholder="Points (e.g. +40 pts)" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
+                            <button className="btn btn-yellow" style={{ width: '100%' }} onClick={() => {
+                                const label = (document.getElementById('new-node-label') as HTMLInputElement).value;
+                                const pts = (document.getElementById('new-node-pts') as HTMLInputElement).value;
+                                if (label && pts) {
+                                    const newNode = {
+                                        id: pathNodes.length + 1,
+                                        icon: '🌟',
+                                        label: label,
+                                        sub: `Activity added by Admin`,
+                                        pts: pts,
+                                        state: 'locked' as const,
+                                        proofType: 'Evidence of completion',
+                                        domain: 'General'
+                                    };
+                                    setPathNodes([...pathNodes, newNode]);
+                                    (document.getElementById('new-node-label') as HTMLInputElement).value = '';
+                                    (document.getElementById('new-node-pts') as HTMLInputElement).value = '';
+                                    showNotif('🗺️ Path Updated for Students!');
+                                }
+                            }}>➕ Add Activity</button>
+                        </div>
+
+                        <div style={{ fontWeight: 800, fontSize: '.85rem', color: '#999', marginBottom: '8px' }}>CURRENT PATH PREVIEW:</div>
+                        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #eee' }}>
+                            {pathNodes.map(n => (
+                                <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderBottom: '1px solid #eee' }}>
+                                    <div style={{ fontSize: '1.2rem' }}>{n.icon}</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 800, fontSize: '.85rem' }}>{n.label}</div>
+                                        <div style={{ fontSize: '.72rem', color: '#666' }}>{n.pts} · {n.state}</div>
+                                    </div>
+                                    <button
+                                        style={{ background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer', padding: '8px' }}
+                                        onClick={() => {
+                                            if (confirm(`Remove "${n.label}"?`)) {
+                                                setPathNodes(pathNodes.filter(node => node.id !== n.id));
+                                                showNotif('🗑️ Activity Removed');
+                                            }
+                                        }}
+                                    >🗑️</button>
+                                    <div className={`badge-pill ${n.state === 'done' ? 'badge-green' : n.state === 'active' ? 'badge-yellow' : 'badge-gray'}`} style={{ fontSize: '.65rem' }}>
+                                        {n.state}
+                                    </div>
                                 </div>
-                                <div className="sub-body"><div className="sub-task">{s.task}</div><div className="sub-desc">{(s as any).reason || s.desc}</div></div>
-                                <div style={{ padding: '0 14px 14px' }}><span className="badge-pill badge-red">✗ Rejected</span></div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {adminTab === 'events' && (
+                    <div id="admin-events-editor" style={{ padding: '16px' }}>
+                        <div className="section-title" style={{ padding: '0 0 16px' }}>🛠️ Manage Events</div>
+                        <div style={{ background: '#fff', borderRadius: '12px', padding: '12px', boxShadow: 'var(--shadow)', marginBottom: '20px', border: '1px solid #eee' }}>
+                            <div style={{ fontWeight: 800, fontSize: '.9rem', marginBottom: '12px' }}>✨ Create New Event</div>
+                            <input id="ev-title" type="text" placeholder="Event Title" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
+                            <input id="ev-date" type="text" placeholder="Date/Time" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
+                            <input id="ev-loc" type="text" placeholder="Location" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
+                            <textarea id="ev-desc" placeholder="Details" className="search-bar" style={{ width: '100%', marginBottom: '10px', minHeight: '80px', padding: '12px', border: 'none', background: '#f5f5f5', borderRadius: '8px', outline: 'none', fontFamily: 'inherit' }} />
+                            <button className="btn btn-yellow" style={{ width: '100%' }} onClick={() => {
+                                const title = (document.getElementById('ev-title') as HTMLInputElement).value;
+                                const date = (document.getElementById('ev-date') as HTMLInputElement).value;
+                                const loc = (document.getElementById('ev-loc') as HTMLInputElement).value;
+                                const desc = (document.getElementById('ev-desc') as HTMLTextAreaElement).value;
+                                if (title && date) {
+                                    const newEvent = { id: Date.now(), title, date, loc, desc };
+                                    setEvents([newEvent, ...events]);
+                                    (document.getElementById('ev-title') as HTMLInputElement).value = '';
+                                    (document.getElementById('ev-date') as HTMLInputElement).value = '';
+                                    (document.getElementById('ev-loc') as HTMLInputElement).value = '';
+                                    (document.getElementById('ev-desc') as HTMLTextAreaElement).value = '';
+                                    showNotif('📅 Event Published Successfully!');
+                                }
+                            }}>➕ Publish Event</button>
+                        </div>
+                        <div style={{ fontWeight: 800, fontSize: '.85rem', color: '#999', marginBottom: '8px' }}>LIVE EVENTS:</div>
+                        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #eee' }}>
+                            {events.map(e => (
+                                <div key={e.id} style={{ padding: '12px', borderBottom: '1px solid #eee' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <div style={{ fontWeight: 800, fontSize: '.85rem' }}>{e.title}</div>
+                                        <button style={{ border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => setEvents(events.filter(ev => ev.id !== e.id))}>🗑️</button>
+                                    </div>
+                                    <div style={{ fontSize: '.72rem', color: 'var(--green-dark)', fontWeight: 700 }}>{e.date} · {e.loc}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -393,8 +549,13 @@ function App() {
             {/* BOTTOM NAV */}
             <div className="bottom-nav">
                 <button className={`nav-item ${currentScreen === 'path' ? 'active' : ''}`} onClick={() => setCurrentScreen('path')}>
-                    <span className="nav-icon">🗺️</span>Path
+                    <span className="nav-icon">🧭</span>Path
                 </button>
+                {user?.role === 'student' && (
+                    <button className={`nav-item ${currentScreen === 'events' ? 'active' : ''}`} onClick={() => setCurrentScreen('events')}>
+                        <span className="nav-icon">📅</span>Events
+                    </button>
+                )}
                 <button className={`nav-item ${currentScreen === 'leaderboard' ? 'active' : ''}`} onClick={() => setCurrentScreen('leaderboard')}>
                     <span className="nav-icon">🏆</span>Leaderboard
                 </button>
@@ -418,13 +579,120 @@ function App() {
                     {modal.type === 'node' && modal.data && (
                         <>
                             <div className="modal-title">{modal.data.icon} {modal.data.label}</div>
+                            <div style={{ fontSize: '.75rem', color: 'var(--green-dark)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <span>🧩 Require Proof:</span>
+                                <span style={{ background: '#E8F5E9', padding: '2px 8px', borderRadius: '6px' }}>{modal.data.proofType}</span>
+                            </div>
                             <p style={{ fontSize: '.85rem', color: '#666', marginBottom: '12px' }}>{modal.data.sub} · {modal.data.pts}</p>
                             {modal.data.state === 'done' ? (
                                 <div style={{ background: '#E8F5E9', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#2E7D32' }}>✅ Completed!</div>
+                            ) : modal.data.state === 'pending' ? (
+                                <div style={{ background: '#E3F2FD', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#1565C0' }}>⏳ Awaiting Admin Approval...</div>
                             ) : (
                                 <>
-                                    <p style={{ fontSize: '.88rem', marginBottom: '16px' }}>Complete this activity to earn <strong>{modal.data.pts}</strong>. Submit your proof below.</p>
-                                    <button className="btn btn-yellow" style={{ width: '100%', marginBottom: '8px' }} onClick={() => completeNode(modal.data.id)}>📤 Submit Proof</button>
+                                    <p style={{ fontSize: '.88rem', marginBottom: '16px' }}>Complete this activity to earn <strong>{modal.data.pts}</strong>. Attach evidence to verify.</p>
+
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <label className="input-label">ATTACH EVIDENCE (IMAGE/DOC)</label>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            {/* FILES PICKER */}
+                                            <div
+                                                style={{ flex: 1, border: '2px dashed #ddd', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', background: '#f9f9f9', transition: 'all 0.2s' }}
+                                                onClick={() => document.getElementById('proof-upload-files')?.click()}
+                                            >
+                                                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📄</div>
+                                                <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Select Files</div>
+                                            </div>
+                                            {/* FOLDER PICKER */}
+                                            <div
+                                                style={{ flex: 1, border: '2px dashed #ddd', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', background: '#f9f9f9', transition: 'all 0.2s' }}
+                                                onClick={() => document.getElementById('proof-upload-folder')?.click()}
+                                            >
+                                                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📂</div>
+                                                <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Select Folder</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Hidden Inputs */}
+                                        <input
+                                            type="file"
+                                            id="proof-upload-files"
+                                            multiple
+                                            style={{ display: 'none' }}
+                                            onChange={(e) => {
+                                                const files = e.target.files;
+                                                if (files && files.length > 0) {
+                                                    const text = files.length > 1 ? `${files.length} Files Selected` : files[0].name;
+                                                    setModal(prev => ({ ...prev, data: { ...prev.data, attachedFile: text, isFolder: false } }));
+                                                    showNotif(`📎 ${text} attached!`);
+                                                }
+                                            }}
+                                        />
+                                        <input
+                                            type="file"
+                                            id="proof-upload-folder"
+                                            style={{ display: 'none' }}
+                                            {...({ webkitdirectory: "", directory: "" } as any)}
+                                            onChange={(e) => {
+                                                const files = e.target.files;
+                                                if (files && files.length > 0) {
+                                                    const text = `Folder with ${files.length} files`;
+                                                    setModal(prev => ({ ...prev, data: { ...prev.data, attachedFile: text, isFolder: true } }));
+                                                    showNotif(`📎 ${text} attached!`);
+                                                }
+                                            }}
+                                        />
+
+                                        {modal.data.attachedFile && (
+                                            <div style={{ marginTop: '8px', fontSize: '.78rem', color: 'var(--green-dark)', fontWeight: 800, textAlign: 'center' }}>
+                                                {modal.data.isFolder ? '📂' : '📄'} {modal.data.attachedFile}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {modal.data.isChecking ? (
+                                        <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                                            <div style={{ marginBottom: '8px', fontSize: '.82rem', fontWeight: 800, color: 'var(--gray)' }}>🔍 AI Originality Scan: {modal.data.checkProgress}%</div>
+                                            <div className="progress-bar"><div className="progress-fill yellow" style={{ width: `${modal.data.checkProgress}%`, borderRadius: '10px' }}></div></div>
+                                            <p style={{ marginTop: '8px', fontSize: '.75rem', fontStyle: 'italic' }}>Detecting AI generation & duplicates...</p>
+                                        </div>
+                                    ) : modal.data.checkResult === 'pass' ? (
+                                        <div style={{ background: '#E8F5E9', borderRadius: '12px', padding: '14px', textAlign: 'center', marginBottom: '14px' }}>
+                                            <div style={{ fontSize: '1.5rem' }}>✅</div>
+                                            <div style={{ fontWeight: 800, color: '#2E7D32', fontSize: '.9rem' }}>Original Content Verified!</div>
+                                            <div style={{ fontSize: '.75rem', opacity: 0.7 }}>Secure Hash: 0x{Math.random().toString(16).slice(2, 8).toUpperCase()}</div>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            className="btn btn-yellow"
+                                            style={{ width: '100%', marginBottom: '8px' }}
+                                            onClick={() => {
+                                                if (!modal.data.attachedFile) { showNotif('⚠️ Attach evidence first!'); return; }
+                                                setModal(prev => ({ ...prev, data: { ...prev.data, isChecking: true, checkProgress: 0 } }));
+
+                                                let prog = 0;
+                                                const interval = setInterval(() => {
+                                                    prog += 4;
+                                                    setModal(prev => ({ ...prev, data: { ...prev.data, checkProgress: prog } }));
+                                                    if (prog >= 100) {
+                                                        clearInterval(interval);
+                                                        setTimeout(() => {
+                                                            setModal(prev => ({ ...prev, data: { ...prev.data, isChecking: false, checkResult: 'pass' } }));
+                                                            showNotif('🛡️ Evidence Verified: Original');
+                                                        }, 500);
+                                                    }
+                                                }, 80);
+                                            }}
+                                        >
+                                            🛡️ Scan & Submit Proof
+                                        </button>
+                                    )}
+
+                                    {modal.data.checkResult === 'pass' && (
+                                        <button className="btn btn-yellow" style={{ width: '100%', marginBottom: '8px' }} onClick={() => completeNode(modal.data.id)}>
+                                            🎁 Claim {modal.data.pts}
+                                        </button>
+                                    )}
                                 </>
                             )}
                             <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>

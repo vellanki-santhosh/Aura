@@ -1,9 +1,9 @@
 export const pathNodes = [
-    { id: 1, icon: '📅', label: 'Attend Event', sub: 'Mission Placements', pts: '+20 pts', state: 'done', domain: 'Community' },
-    { id: 2, icon: '📚', label: 'Organize Study Group', sub: 'Domain: Academic', pts: '+25 pts', state: 'active', domain: 'Academic' },
-    { id: 3, icon: '📣', label: 'Tech Seminar Q&A', sub: 'Domain: Engagement', pts: '+15 pts', state: 'locked', domain: 'Tech' },
-    { id: 4, icon: '</>', label: 'Submit Project Repo', sub: 'Domain: Tech', pts: '+35 pts', state: 'locked', domain: 'Tech' },
-    { id: 5, icon: '🎤', label: 'Present at Seminar', sub: 'Domain: Academic', pts: '+30 pts', state: 'locked', domain: 'Academic' },
+    { id: 1, icon: '📅', label: 'Attend Event', sub: 'Mission Placements', pts: '+20 pts', state: 'done', domain: 'Community', proofType: 'Event Selfie / QR Scan' },
+    { id: 2, icon: '📚', label: 'Organize Study Group', sub: 'Domain: Academic', pts: '+25 pts', state: 'active', domain: 'Academic', proofType: 'Photo of Group + Attendance sheet' },
+    { id: 3, icon: '📣', label: 'Tech Seminar Q&A', sub: 'Domain: Engagement', pts: '+15 pts', state: 'locked', domain: 'Tech', proofType: 'Summary PDF / Video Clip' },
+    { id: 4, icon: '</>', label: 'Submit Project Repo', sub: 'Domain: Tech', pts: '+35 pts', state: 'locked', domain: 'Tech', proofType: 'GitHub Repository URL' },
+    { id: 5, icon: '🎤', label: 'Present at Seminar', sub: 'Domain: Academic', pts: '+30 pts', state: 'locked', domain: 'Academic', proofType: 'Presentation PPT / Stage Photo' },
 ];
 
 export const lbData: Record<string, any[]> = {
@@ -76,4 +76,9 @@ export const adminValidated = [
 
 export const adminRejected = [
     { initials: 'TK', name: 'Tej K.', time: '2 hours ago', task: '[Organize Study Group] (Academic)', desc: 'Missing attendance photo', pts: 25, id: 'r1', reason: 'Insufficient evidence provided' },
+];
+export const initialEvents = [
+    { id: 1, title: '🚀 Tech Innovate 2026', date: 'April 05, 2026', loc: 'Main Seminar Hall', desc: 'A grand showcase of student-led technical projects and innovation.' },
+    { id: 2, title: '🏀 Intra-College Tournament', date: 'April 12, 2026', loc: 'College Grounds', desc: 'Annual sports meet specifically for club members and new recruits.' },
+    { id: 3, title: '🎬 Film Festival Night', date: 'April 20, 2026', loc: 'Open Air Theater', desc: 'Screening award-winning entries from the Media Club creators.' },
 ];
