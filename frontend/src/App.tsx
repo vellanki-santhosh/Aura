@@ -20,12 +20,14 @@ const UsersScreen = lazy(() => import('./components/UsersScreen'));
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'));
 const AdminScreen = lazy(() => import('./components/AdminScreen'));
 const StudentSettingsScreen = lazy(() => import('./components/StudentSettingsScreen'));
+import StudentLayout from './components/StudentLayout';
+import AdminLayout from './components/AdminLayout';
 import BottomNav from './components/BottomNav';
 import LoginScreen from './components/LoginScreen';
 import NotifToast from './components/NotifToast';
 import Modal from './components/Modal';
 
-interface PathNode {
+export interface PathNode {
     id: number;
     icon: string;
     label: string;
@@ -36,7 +38,7 @@ interface PathNode {
     proofType: string;
 }
 
-interface UserData {
+export interface UserData {
     initials: string;
     name: string;
     role: string;
@@ -46,7 +48,7 @@ interface UserData {
     domain: string;
 }
 
-interface AdminQueueItem {
+export interface AdminQueueItem {
     initials: string;
     name: string;
     time: string;
@@ -58,7 +60,7 @@ interface AdminQueueItem {
     nodeId?: number;
 }
 
-interface Event {
+export interface Event {
     id: number;
     title: string;
     date: string;
@@ -66,13 +68,13 @@ interface Event {
     desc: string;
 }
 
-interface SurpriseMission {
+export interface SurpriseMission {
     title: string;
     reward: number;
     done: boolean;
 }
 
-interface TeamChallenge {
+export interface TeamChallenge {
     id: string;
     title: string;
     domain: string;
@@ -83,14 +85,14 @@ interface TeamChallenge {
     bonusAwarded: boolean;
 }
 
-interface LiveTickerItem {
+export interface LiveTickerItem {
     id: string;
     text: string;
     screen: string;
     lbDomain?: string;
 }
 
-type ModalState =
+export type ModalState =
     | { isOpen: false; type: ''; data: null }
     | { isOpen: true; type: 'node'; data: PathNode }
     | { isOpen: true; type: 'user'; data: UserData };
@@ -821,360 +823,87 @@ function App() {
     }
 
     // --- MAIN APP RENDER ---
+    // Render student or admin layout based on role
+    if (user?.role === 'student') {
+        return (
+            <StudentLayout
+                currentScreen={currentScreen}
+                onNavigate={setCurrentScreen}
+                pathNodes={pathNodes}
+                users={users}
+                events={events}
+                lbData={lbData}
+                points={points}
+                streak={streak}
+                userName={user?.name || 'Student'}
+                userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'S'}
+                surpriseMission={surpriseMission}
+                teamChallenges={teamChallenges}
+                modal={modal}
+                filteredUsers={filteredUsers}
+                liveTickerItems={liveTickerItems}
+                onPathNodeClick={handleNodeTap}
+                onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
+                onModalClose={closeModal}
+                onLuckySpinClick={playLuckySpin}
+                onEventRegister={registerEvent}
+                onAddTeamChallenge={() => {}}
+                onCompleteTeamChallenge={() => {}}
+                onAwardTeamBonus={() => {}}
+                onClaimBadge={(badge) => showNotif('🎖️ ' + badge + ' — Earned!')}
+                onPathNodeProofUpload={submitMissionProof}
+                onUpdateTeamMember={() => {}}
+                onUpdateSurpriseMission={setSurpriseMission}
+                PathScreenComponent={PathScreen}
+                EventsScreenComponent={EventsScreen}
+                LeaderboardScreenComponent={LeaderboardScreen}
+                UsersScreenComponent={UsersScreen}
+                ProfileScreenComponent={ProfileScreen}
+                StudentSettingsScreenComponent={StudentSettingsScreen}
+                TeamScreenComponent={TeamScreen}
+                ModalComponent={Modal}
+                NotifToastComponent={NotifToast}
+            />
+        );
+    } else if (user?.role === 'admin') {
+        return (
+            <AdminLayout
+                currentScreen={currentScreen}
+                onNavigate={setCurrentScreen}
+                pathNodes={pathNodes}
+                users={users}
+                adminQueue={adminQueue}
+                adminValidated={adminValidated}
+                adminRejected={adminRejected}
+                userName={user?.name || 'Admin'}
+                userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'A'}
+                modal={modal}
+                onModalClose={closeModal}
+                onPathNodeClick={handleNodeTap}
+                onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
+                onQueueApprove={approveSubmission}
+                onQueueReject={rejectSubmission}
+                onAddPathNode={addActivity}
+                onEditPathNode={() => {}}
+                onPathNodeProofUpload={submitMissionProof}
+                onCreateEvent={createEvent}
+                AdminScreenComponent={AdminScreen}
+                ProfileScreenComponent={ProfileScreen}
+                UsersScreenComponent={UsersScreen}
+                ModalComponent={Modal}
+                NotifToastComponent={NotifToast}
+            />
+        );
+    }
+
+    // Fallback (should not reach here)
     return (
         <div className="app-shell">
-            {/* TOP BAR */}
-            <div className="topbar">
-                <div className="topbar-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <img src={LOGO_URL} alt="AURA" style={{ height: '32px', width: 'auto' }} />
-                    <span>AURA</span>
-                </div>
-                <div className="topbar-stats">
-                    <div className="stat-pill streak-pill"><FlameIcon hot={streak > 7} /><span className="streak-count">{streak}</span></div>
-                    <div className="stat-pill"><span className="icon">🪙</span> {animatedTopPoints} pts</div>
-                </div>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                Loading...
             </div>
-
-            <Suspense fallback={<ScreenFallback />}>
-                <PathScreen
-                    currentScreen={currentScreen}
-                    activeTickerItem={activeTickerItem}
-                    tickerIndex={tickerIndex}
-                    onTickerTap={handleTickerTap}
-                    isSpinning={isSpinning}
-                    spinUsed={spinUsed}
-                    spinReward={spinReward}
-                    surpriseMission={surpriseMission}
-                    logoUrl={LOGO_URL}
-                    pathNodes={pathNodes}
-                    bouncingNodeId={bouncingNodeId}
-                    onPlayLuckySpin={playLuckySpin}
-                    onCompleteSurpriseMission={completeSurpriseMission}
-                    onRerollSurpriseMission={rerollSurpriseMission}
-                    onNodeTap={handleNodeTap}
-                    pickNodeAnimation={pickNodeAnimation}
-                    nodeAnimationSide={nodeAnimationSide}
-                    connectorState={connectorState}
-                />
-            </Suspense>
-
-            <Suspense fallback={<ScreenFallback />}>
-                <EventsScreen
-                    currentScreen={currentScreen}
-                    events={events}
-                    registeredSet={registeredSet}
-                    declinedSet={declinedSet}
-                    onRegister={registerEvent}
-                    onReject={rejectEvent}
-                />
-            </Suspense>
-
-            <Suspense fallback={<ScreenFallback />}>
-                <LeaderboardScreen
-                    currentScreen={currentScreen}
-                    lbDomain={lbDomain}
-                    lbData={lbData}
-                    points={points}
-                    userName={user?.name}
-                    onDomainChange={setLbDomain}
-                    avatarColor={avatarColor}
-                />
-            </Suspense>
-
-            <Suspense fallback={<ScreenFallback />}>
-                <UsersScreen
-                    currentScreen={currentScreen}
-                    userSearch={userSearch}
-                    userFilterDomain={userFilterDomain}
-                    filteredUsers={filteredUsers}
-                    avatarColor={avatarColor}
-                    onSearchChange={setUserSearch}
-                    onFilterChange={setUserFilterDomain}
-                    onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
-                />
-            </Suspense>
-
-            <TeamScreen
-                currentScreen={currentScreen}
-                teamChallenges={teamChallenges}
-                teamConfettiChallengeId={teamConfettiChallengeId}
-                avatarColor={avatarColor}
-                onJoinChallenge={joinTeamChallenge}
-            />
-
-            <Suspense fallback={<ScreenFallback />}>
-                <ProfileScreen
-                    currentScreen={currentScreen}
-                    user={user}
-                    animatedProfilePoints={animatedProfilePoints}
-                    streak={streak}
-                    points={points}
-                    badgesData={badgesData}
-                    activityData={activityData}
-                    onBadgeClick={(name) => showNotif('🎖️ ' + name + ' — Earned!')}
-                    onShareLinkedIn={shareContributionOnLinkedIn}
-                    onLogout={handleLogout}
-                    FlameIcon={FlameIcon}
-                />
-            </Suspense>
-
-            <Suspense fallback={<ScreenFallback />}>
-                <AdminScreen
-                    currentScreen={currentScreen}
-                    adminTab={adminTab}
-                    pendingQueue={pendingQueue}
-                    adminValidated={adminValidated}
-                    adminQueue={adminQueue}
-                    approvedSet={approvedSet}
-                    pathNodes={pathNodes}
-                    events={events}
-                    avatarColor={avatarColor}
-                    onAdminTabChange={setAdminTab}
-                    onApprove={approveSubmission}
-                    onReject={rejectSubmission}
-                    onAddActivity={addActivity}
-                    onRemoveActivity={removeActivity}
-                    onCreateEvent={createEvent}
-                    onDeleteEvent={deleteEvent}
-                />
-            </Suspense>
-
-            <Suspense fallback={<ScreenFallback />}>
-                <StudentSettingsScreen
-                    currentScreen={currentScreen}
-                    user={user}
-                    points={points}
-                    onLogout={handleLogout}
-                />
-            </Suspense>
-
             <BottomNav currentScreen={currentScreen} userRole={user?.role} onNavigate={setCurrentScreen} />
-
-            {/* MODAL */}
-            <Modal isOpen={modal.isOpen} onClose={closeModal}>
-                    {modal.type === 'node' && modal.data && (() => {
-                        const needsGithubUrl = requiresGithubUrl(modal.data.proofType);
-                        const githubUrlValid = !needsGithubUrl || GITHUB_REPO_URL_REGEX.test(githubProofUrl.trim());
-                        const hasBinaryProof = Boolean(photoProof || fileProof);
-                        const canSubmitProof = modal.data.state === 'active' && (needsGithubUrl ? githubUrlValid : hasBinaryProof);
-
-                        return (
-                            <>
-                                <div className="modal-title">{modal.data.icon} {modal.data.label}</div>
-                                <div style={{ fontSize: '.75rem', color: 'var(--green-dark)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <span>🧩 Require Proof:</span>
-                                    <span style={{ background: '#E8F5E9', padding: '2px 8px', borderRadius: '6px' }}>{modal.data.proofType}</span>
-                                </div>
-                                <p style={{ fontSize: '.85rem', color: '#666', marginBottom: '12px' }}>{modal.data.sub} · {modal.data.pts}</p>
-
-                                {modal.data.state === 'done' ? (
-                                    <div style={{ background: '#E8F5E9', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#2E7D32' }}>✅ Completed!</div>
-                                ) : modal.data.state === 'pending' ? (
-                                    <div style={{ background: '#E3F2FD', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#1565C0' }}>⏳ Awaiting Admin Approval...</div>
-                                ) : (
-                                    <>
-                                        <p style={{ fontSize: '.88rem', marginBottom: '16px' }}>Complete this activity to earn <strong>{modal.data.pts}</strong>. Submit valid proof for review.</p>
-
-                                        <div style={{ marginBottom: '16px' }}>
-                                            <label className="input-label">PROOF SUBMISSION</label>
-                                            <div className="proof-options">
-                                                <button type="button" className="proof-option-card" onClick={() => cameraProofInputRef.current?.click()}>
-                                                    <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📸</div>
-                                                    <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Take Photo</div>
-                                                </button>
-                                                <button type="button" className="proof-option-card" onClick={() => fileProofInputRef.current?.click()}>
-                                                    <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📄</div>
-                                                    <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Upload File</div>
-                                                </button>
-                                            </div>
-
-                                            <input
-                                                type="file"
-                                                ref={cameraProofInputRef}
-                                                accept="image/*"
-                                                capture="environment"
-                                                style={{ display: 'none' }}
-                                                onChange={(e) => {
-                                                    const selected = e.target.files?.[0] || null;
-                                                    if (selected) {
-                                                        setPhotoProof(selected);
-                                                        setPhotoPreviewUrl((prev) => {
-                                                            if (prev) URL.revokeObjectURL(prev);
-                                                            return URL.createObjectURL(selected);
-                                                        });
-                                                        showNotif('📸 Photo evidence added');
-                                                    }
-                                                    e.currentTarget.value = '';
-                                                }}
-                                            />
-                                            <input
-                                                type="file"
-                                                ref={fileProofInputRef}
-                                                style={{ display: 'none' }}
-                                                onChange={(e) => {
-                                                    const selected = e.target.files?.[0] || null;
-                                                    if (selected) {
-                                                        setFileProof(selected);
-                                                        showNotif(`📎 ${selected.name} attached`);
-                                                    }
-                                                    e.currentTarget.value = '';
-                                                }}
-                                            />
-
-                                            {(photoProof || fileProof) && (
-                                                <div className="proof-preview-wrap">
-                                                    {photoPreviewUrl && (
-                                                        <div className="proof-photo-preview">
-                                                            <img src={photoPreviewUrl} alt="Mission proof preview" />
-                                                        </div>
-                                                    )}
-                                                    <div className="proof-file-meta">
-                                                        {photoProof && <div>📸 {photoProof.name}</div>}
-                                                        {fileProof && <div>📄 {fileProof.name}</div>}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {needsGithubUrl && (
-                                            <div style={{ marginBottom: '14px' }}>
-                                                <label className="input-label">GITHUB REPOSITORY URL</label>
-                                                <input
-                                                    type="url"
-                                                    className="login-input"
-                                                    placeholder="https://github.com/username/repository"
-                                                    value={githubProofUrl}
-                                                    onChange={(e) => setGithubProofUrl(e.target.value)}
-                                                />
-                                                <div className={`proof-hint ${githubProofUrl ? (githubUrlValid ? 'valid' : 'invalid') : ''}`}>
-                                                    {githubProofUrl
-                                                        ? (githubUrlValid ? '✅ Valid GitHub repository URL' : '⚠️ Enter a valid GitHub repository URL')
-                                                        : 'Required for this mission'}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <button
-                                            className="btn btn-yellow"
-                                            style={{ width: '100%', marginBottom: '8px' }}
-                                            onClick={submitMissionProof}
-                                            disabled={!canSubmitProof || isUploadingProof}
-                                        >
-                                            {isUploadingProof ? (
-                                                <span className="proof-uploading-inline">
-                                                    <span className="proof-upload-spinner" aria-hidden="true"></span>
-                                                    Uploading proof...
-                                                </span>
-                                            ) : (
-                                                `🚀 Submit ${modal.data.pts}`
-                                            )}
-                                        </button>
-
-                                        {!canSubmitProof && (
-                                            <div className="proof-hint invalid" style={{ marginBottom: '8px' }}>
-                                                {needsGithubUrl ? 'Valid GitHub URL is required to submit this mission.' : 'Attach a photo or file to submit this mission.'}
-                                            </div>
-                                        )}
-
-                                        {canSubmitProof && !isUploadingProof && (
-                                            <div className="proof-hint valid" style={{ marginBottom: '8px' }}>
-                                                ✅ Ready to submit
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-
-                                <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
-                            </>
-                        );
-                    })()}
-
-                    {modal.type === 'user' && modal.data && (
-                        <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
-                                <div className="avatar lg" style={{ background: avatarColor(modal.data.name) }}>{modal.data.initials}</div>
-                                <div>
-                                    <div style={{ fontFamily: "'Fredoka One'", fontSize: '1.2rem' }}>{modal.data.name}</div>
-                                    <div style={{ fontSize: '.82rem', color: '#666' }}>{modal.data.role}</div>
-                                    <div className="pts-chip" style={{ display: 'inline-block', marginTop: '4px' }}>🪙 {modal.data.pts} pts</div>
-                                </div>
-                            </div>
-                            <div style={{ marginBottom: '12px' }}>{modal.data.badges.map((b: string, bi: number) => <span className="badge-pill badge-green" key={bi}>{b}</span>)}</div>
-                            {modal.data.available ? (
-                                <button className="btn btn-yellow" style={{ width: '100%', marginBottom: '8px' }} onClick={() => { closeModal(); showNotif('📨 Review request sent to ' + modal.data.name + '!'); }}>🤝 Request Peer Review</button>
-                            ) : (
-                                <div className="badge-pill badge-red" style={{ padding: '8px 14px' }}>⛔ Not available for review</div>
-                            )}
-                            <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
-                        </>
-                    )}
-            </Modal>
-
-            {/* NOTIFICATION */}
             <NotifToast show={notif.show} message={notif.msg} />
-            {pointsDeltaToast && <div className="points-rise-toast">+{pointsDeltaToast.delta} pts</div>}
-
-            <style>{`
-                .team-challenge-card .badge-yellow {
-                    background: #fff7ce;
-                    color: #7a6200;
-                    border: 1px solid #efd57a;
-                }
-
-                .team-confetti-burst {
-                    position: absolute;
-                    inset: 0;
-                    pointer-events: none;
-                    overflow: hidden;
-                    z-index: 5;
-                }
-
-                .team-confetti-dot {
-                    position: absolute;
-                    top: 48%;
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    opacity: 0;
-                    animation: teamConfettiRise 1.2s ease-out forwards;
-                }
-
-                @keyframes teamConfettiRise {
-                    0% {
-                        opacity: 0;
-                        transform: translateY(6px) scale(.6);
-                    }
-                    20% {
-                        opacity: 1;
-                    }
-                    100% {
-                        opacity: 0;
-                        transform: translateY(-54px) translateX(8px) scale(1);
-                    }
-                }
-
-                .suspense-spinner-wrap {
-                    min-height: 200px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .suspense-spinner {
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 50%;
-                    border: 3px solid rgba(0, 0, 0, .15);
-                    border-top-color: rgba(0, 0, 0, .72);
-                    animation: suspenseSpin .8s linear infinite;
-                }
-
-                @keyframes suspenseSpin {
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-            `}</style>
         </div>
     );
 }
