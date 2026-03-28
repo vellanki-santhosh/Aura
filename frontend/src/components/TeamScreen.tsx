@@ -40,17 +40,20 @@ function TeamScreen({ currentScreen, teamChallenges, teamConfettiChallengeId, av
                         <div className="card team-challenge-card" key={challenge.id} style={{ margin: 0, position: 'relative' }}>
                             {teamConfettiChallengeId === challenge.id && (
                                 <div className="team-confetti-burst" aria-hidden="true">
-                                    {Array.from({ length: 18 }, (_, idx) => (
-                                        <span
-                                            className="team-confetti-dot"
-                                            key={idx}
-                                            style={{
-                                                left: `${10 + (idx * 5) % 80}%`,
-                                                animationDelay: `${(idx % 6) * 0.03}s`,
-                                                background: ['#2ecc71', '#ffd63f', '#f9a825', '#22c55e', '#ff8a00'][idx % 5],
-                                            }}
-                                        />
-                                    ))}
+{Array.from({ length: 18 }, (_, idx) => {
+                                        const uniqueKey = `confetti-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`;
+                                        return (
+                                            <span
+                                                className="team-confetti-dot"
+                                                key={uniqueKey}
+                                                style={{
+                                                    left: `${10 + (idx * 5) % 80}%`,
+                                                    animationDelay: `${(idx % 6) * 0.03}s`,
+                                                    background: ['#2ecc71', '#ffd63f', '#f9a825', '#22c55e', '#ff8a00'][idx % 5],
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             )}
 

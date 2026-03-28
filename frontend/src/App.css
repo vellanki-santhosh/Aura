@@ -685,7 +685,7 @@ body {
   font-size: 1.6rem;
 }
 
-.path-node .done-check {
+.path-node .done-check, .path-node .pending-check {
   position: absolute;
   top: -4px;
   right: -4px;

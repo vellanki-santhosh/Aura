@@ -114,7 +114,9 @@ function StudentSettingsScreen({ currentScreen, user, points, onLogout }: Studen
                                     <span style={{ fontWeight: 700, fontSize: '.85rem' }}>🔥 Streak Goal</span>
                                     <span style={{ color: '#666', fontSize: '.8rem' }}>14 / 30 days</span>
                                 </div>
-                                <div className="progress-bar" style={{ marginTop: '6px' }}><div className="progress-fill" style={{ width: '46%' }}></div></div>
+<div style={{ background: '#f0f0f0', borderRadius: '10px', height: '10px', overflow: 'hidden', marginTop: '6px' }}>
+  <div style={{ height: '100%', background: 'linear-gradient(90deg, #2ECC71, #27AE60)', borderRadius: '10px', width: '46%', transition: 'width 0.8s ease' }}></div>
+</div>
                                 <div style={{ fontSize: '.75rem', color: '#999', marginTop: '4px' }}>Keep a 30-day streak!</div>
                             </div>
                         </div>

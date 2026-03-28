@@ -264,9 +264,10 @@ function App() {
     const [githubProofUrl, setGithubProofUrl] = useState('');
     const [isUploadingProof, setIsUploadingProof] = useState(false);
 
-    const showNotif = useCallback((msg: string): void => {
+const showNotif = useCallback((msg: string): void => {
         setNotif({ msg, show: true });
-        setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
+        const timeoutId = setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
+        return () => clearTimeout(timeoutId);
     }, []);
 
     const animateCount = (target: number, setter: React.Dispatch<React.SetStateAction<number>>): void => {
@@ -371,7 +372,7 @@ function App() {
     };
 
     // Login handler
-    const handleLogin = useCallback((e: React.FormEvent): void => {
+const handleLogin = useCallback((e: React.FormEvent): void => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
         const name = formData.get('name') as string;
@@ -387,7 +388,7 @@ function App() {
         setIsLoggedIn(true);
         showNotif(`👋 Welcome, ${name}!`);
         setCurrentScreen('path');
-    }, [loginRole, showNotif]);
+    }, [loginRole, showNotif, setUser, setIsLoggedIn, setCurrentScreen]);
 
     const handleLogout = (): void => {
         setIsLoggedIn(false);

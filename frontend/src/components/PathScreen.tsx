@@ -1,5 +1,6 @@
 import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import ErrorBoundary from './ErrorBoundary';
 
 export interface PathNode {
     id: number;
@@ -126,7 +127,7 @@ function PathScreen({
                                     </svg>
                                 </div>
                             )}
-                            {node.state === 'pending' && <div className="done-check" style={{ background: '#2196F3' }}>⏳</div>}
+                            {node.state === 'pending' && <div className="pending-check" style={{ background: '#2196F3' }}>⏳</div>}
                             {node.state === 'locked' && (
                                 <div className="lock-icon" aria-label="Locked">
                                     <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
@@ -143,7 +144,15 @@ function PathScreen({
 
                         <div className={`path-node-animation ${nodeAnimationSide(i)}`}>
                             {currentScreen === 'path' && (
-                                <DotLottieReact src={pickNodeAnimation(node.id + i).src} loop autoplay style={{ width: '78px', height: '78px' }} />
+                                <ErrorBoundary>
+                                    <DotLottieReact 
+                                        src={pickNodeAnimation(node.id + i).src} 
+                                        loop 
+                                        autoplay 
+                                        style={{ width: '78px', height: '78px' }}
+                                        onError={(e) => console.warn('Lottie load failed:', e)}
+                                    />
+                                </ErrorBoundary>
                             )}
                         </div>
                     </div>

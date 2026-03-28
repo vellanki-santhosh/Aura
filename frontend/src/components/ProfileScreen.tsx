@@ -58,7 +58,10 @@ function ProfileScreen({
                     <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>3</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Badges</div></div>
                     <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
                     <div style={{ textAlign: 'center' }}>
-                        <div className="profile-streak-value" style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}><FlameIcon hot={streak > 7} />{streak}</div>
+                        <div className="profile-streak-value" style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>
+                            {FlameIcon ? <FlameIcon hot={streak > 7} /> : <span style={{ color: '#ff8a00' }}>🔥</span>}
+                            {streak}
+                        </div>
                         <div style={{ fontSize: '.72rem', opacity: .7 }}>Streak</div>
                     </div>
                 </div>
