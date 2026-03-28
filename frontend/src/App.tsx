@@ -53,6 +53,43 @@ const ONBOARDING_CARDS = [
         text: 'Unlock recognition badges that showcase your growth, teamwork, and campus leadership.',
     },
 ];
+const TEAM_CHALLENGES_SEED = [
+    {
+        id: 'tc-1',
+        title: 'Study Blitz',
+        domain: 'Academic',
+        deadline: 'Apr 05',
+        target: 3,
+        completed: 1,
+        members: [
+            { name: 'Kiran R.', initials: 'KR' },
+        ],
+    },
+    {
+        id: 'tc-2',
+        title: 'Code Sprint',
+        domain: 'Tech',
+        deadline: 'Apr 08',
+        target: 4,
+        completed: 2,
+        members: [
+            { name: 'Aisha M.', initials: 'AM' },
+            { name: 'Rahul D.', initials: 'RD' },
+        ],
+    },
+    {
+        id: 'tc-3',
+        title: 'Poster Relay',
+        domain: 'Media',
+        deadline: 'Apr 11',
+        target: 3,
+        completed: 2,
+        members: [
+            { name: 'Riya P.', initials: 'RP' },
+            { name: 'Yash K.', initials: 'YK' },
+        ],
+    },
+];
 
 const pickNodeAnimation = (seed: number) => {
     const index = Math.abs((seed * 9301 + 49297) % 233280) % PATH_ANIMATIONS.length;
@@ -115,6 +152,10 @@ function App() {
         const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
         return { ...picked, done: false };
     });
+    const [teamChallenges, setTeamChallenges] = useState(
+        TEAM_CHALLENGES_SEED.map((c) => ({ ...c, bonusAwarded: false }))
+    );
+    const [teamConfettiChallengeId, setTeamConfettiChallengeId] = useState<string | null>(null);
     const [bouncingNodeId, setBouncingNodeId] = useState<number | null>(null);
     const [animatedTopPoints, setAnimatedTopPoints] = useState(0);
     const [animatedProfilePoints, setAnimatedProfilePoints] = useState(0);
@@ -403,6 +444,54 @@ function App() {
         const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
         setSurpriseMission({ ...picked, done: false });
         showNotif('🔄 Surprise mission refreshed.');
+    };
+
+    const joinTeamChallenge = (challengeId: string) => {
+        if (!user) return;
+
+        const initials = user.name
+            .split(' ')
+            .map((chunk) => chunk[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase();
+
+        let awardedBonus = false;
+
+        setTeamChallenges((prev) =>
+            prev.map((challenge) => {
+                if (challenge.id !== challengeId) return challenge;
+
+                const alreadyJoined = challenge.members.some((member) => member.name === user.name);
+                if (alreadyJoined) {
+                    showNotif('✅ You already joined this challenge.');
+                    return challenge;
+                }
+
+                const nextCompleted = Math.min(challenge.target, challenge.completed + 1);
+                const reachedGoal = nextCompleted >= challenge.target;
+
+                if (reachedGoal && !challenge.bonusAwarded) {
+                    awardedBonus = true;
+                }
+
+                return {
+                    ...challenge,
+                    completed: nextCompleted,
+                    members: [...challenge.members, { name: user.name, initials }],
+                    bonusAwarded: challenge.bonusAwarded || reachedGoal,
+                };
+            })
+        );
+
+        showNotif('🤝 Joined challenge team!');
+
+        if (awardedBonus) {
+            setPoints((p) => p + 50);
+            setTeamConfettiChallengeId(challengeId);
+            showNotif('🎉 Team challenge completed! +50 bonus pts');
+            setTimeout(() => setTeamConfettiChallengeId((prev) => (prev === challengeId ? null : prev)), 1200);
+        }
     };
 
     // --- ONBOARDING RENDER ---
@@ -746,6 +835,90 @@ function App() {
                 </div>
             </div>
 
+            {/* TEAM CHALLENGES SCREEN */}
+            <div className={`screen ${currentScreen === 'team' ? 'active' : ''} fade-in`}>
+                <div className="section-title">👥 Team Challenges</div>
+                <div style={{ padding: '0 16px 6px', fontSize: '.82rem', color: '#666', fontWeight: 700 }}>
+                    Join mission squads, complete goals together, unlock bonus rewards.
+                </div>
+
+                <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {teamChallenges.map((challenge) => {
+                        const progressPct = Math.min(100, (challenge.completed / challenge.target) * 100);
+
+                        return (
+                            <div className="card team-challenge-card" key={challenge.id} style={{ margin: 0, position: 'relative' }}>
+                                {teamConfettiChallengeId === challenge.id && (
+                                    <div className="team-confetti-burst" aria-hidden="true">
+                                        {Array.from({ length: 18 }, (_, idx) => (
+                                            <span
+                                                className="team-confetti-dot"
+                                                key={idx}
+                                                style={{
+                                                    left: `${10 + (idx * 5) % 80}%`,
+                                                    animationDelay: `${(idx % 6) * 0.03}s`,
+                                                    background: ['#2ecc71', '#ffd63f', '#f9a825', '#22c55e', '#ff8a00'][idx % 5],
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="card-inner" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                        <div style={{ fontWeight: 900, color: 'var(--dark)', fontSize: '.96rem' }}>{challenge.title}</div>
+                                        <span className="badge-pill badge-yellow" style={{ margin: 0 }}>{challenge.domain}</span>
+                                    </div>
+
+                                    <div style={{ fontSize: '.74rem', color: '#666', fontWeight: 700 }}>Deadline: {challenge.deadline}</div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.78rem', fontWeight: 800 }}>
+                                        <span>Progress</span>
+                                        <span>{challenge.completed}/{challenge.target} done</span>
+                                    </div>
+                                    <div className="progress-bar" style={{ marginBottom: 0 }}>
+                                        <div className="progress-fill yellow" style={{ width: `${progressPct}%` }}></div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        {challenge.members.map((member) => (
+                                            <div
+                                                key={member.name}
+                                                title={member.name}
+                                                style={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '50%',
+                                                    background: avatarColor(member.name),
+                                                    color: '#111',
+                                                    fontWeight: 900,
+                                                    fontSize: '.68rem',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    border: '2px solid #fff',
+                                                    boxShadow: '0 2px 6px rgba(0,0,0,.12)',
+                                                }}
+                                            >
+                                                {member.initials}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button
+                                        className="btn btn-yellow"
+                                        style={{ width: '100%' }}
+                                        onClick={() => joinTeamChallenge(challenge.id)}
+                                    >
+                                        Join Challenge
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
             {/* PROFILE SCREEN */}
             <div className={`screen ${currentScreen === 'profile' ? 'active' : ''} fade-in`}>
                 <div className="profile-hero">
@@ -962,6 +1135,9 @@ function App() {
                 <button className={`nav-item ${currentScreen === 'users' ? 'active' : ''}`} onClick={() => setCurrentScreen('users')}>
                     <span className="nav-icon">👥</span>Users
                 </button>
+                <button className={`nav-item ${currentScreen === 'team' ? 'active' : ''}`} onClick={() => setCurrentScreen('team')}>
+                    <span className="nav-icon">👨‍👩‍👧‍👦</span>Team
+                </button>
                 {user?.role === 'admin' && (
                     <button className={`nav-item ${currentScreen === 'admin' ? 'active' : ''}`} onClick={() => setCurrentScreen('admin')}>
                         <span className="nav-icon">🔑</span>Approvals
@@ -1123,6 +1299,46 @@ function App() {
             {/* NOTIFICATION */}
             <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
             {pointsDeltaToast && <div className="points-rise-toast">+{pointsDeltaToast.delta} pts</div>}
+
+            <style>{`
+                .team-challenge-card .badge-yellow {
+                    background: #fff7ce;
+                    color: #7a6200;
+                    border: 1px solid #efd57a;
+                }
+
+                .team-confetti-burst {
+                    position: absolute;
+                    inset: 0;
+                    pointer-events: none;
+                    overflow: hidden;
+                    z-index: 5;
+                }
+
+                .team-confetti-dot {
+                    position: absolute;
+                    top: 48%;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    opacity: 0;
+                    animation: teamConfettiRise 1.2s ease-out forwards;
+                }
+
+                @keyframes teamConfettiRise {
+                    0% {
+                        opacity: 0;
+                        transform: translateY(6px) scale(.6);
+                    }
+                    20% {
+                        opacity: 1;
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: translateY(-54px) translateX(8px) scale(1);
+                    }
+                }
+            `}</style>
         </div>
     );
 }
