@@ -20,6 +20,8 @@ const avatarColor = (name: string) => {
     return colors[Math.abs(hash)];
 };
 
+const LOGO_URL = `${import.meta.env.BASE_URL}logo.png`;
+
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState<{ name: string; rollNo: string; domain: string; role: 'student' | 'admin' } | null>(null);
@@ -153,7 +155,7 @@ function App() {
             <div className="app-shell" style={{ justifyContent: 'center' }}>
                 <div className="login-screen">
                     <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                        <img src="/logo.png" alt="AURA Logo" style={{ width: '240px', height: 'auto' }} />
+                        <img src={LOGO_URL} alt="AURA Logo" style={{ width: '240px', height: 'auto' }} />
                         <div className="login-subtitle" style={{ marginTop: '10px' }}>Powering Student Contributions</div>
                     </div>
 
@@ -209,7 +211,7 @@ function App() {
             {/* TOP BAR */}
             <div className="topbar">
                 <div className="topbar-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <img src="/logo.png" alt="AURA" style={{ height: '32px', width: 'auto' }} />
+                    <img src={LOGO_URL} alt="AURA" style={{ height: '32px', width: 'auto' }} />
                     <span>AURA</span>
                 </div>
                 <div className="topbar-stats">
@@ -227,7 +229,7 @@ function App() {
                 </div>
 
                 <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
-                    <img src="logo.png" alt="AURA" style={{ width: '100px', height: 'auto', opacity: 0.9 }} />
+                    <img src={LOGO_URL} alt="AURA" style={{ width: '100px', height: 'auto', opacity: 0.9 }} />
                 </div>
 
                 <div className="section-title">🧭 Your Activity Path</div>
