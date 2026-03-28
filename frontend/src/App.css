@@ -88,6 +88,31 @@ body {
   font-size: 1rem;
 }
 
+.streak-pill {
+  gap: 6px;
+}
+
+.streak-count {
+  line-height: 1;
+}
+
+.streak-flame {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+}
+
+.streak-flame.hot {
+  transform-origin: center bottom;
+  animation: flamePulse .95s ease-in-out infinite, flameFlicker .22s linear infinite;
+}
+
+.profile-streak-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .admin-badge {
   background: #1a1a2e;
   color: #fff;
@@ -1166,6 +1191,22 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
+.points-rise-toast {
+  position: fixed;
+  top: 78px;
+  right: 20px;
+  z-index: 1100;
+  background: linear-gradient(135deg, #1ca34a, #2ecc71);
+  color: #fff;
+  font-weight: 900;
+  font-size: .82rem;
+  border-radius: 16px;
+  padding: 7px 12px;
+  box-shadow: 0 8px 20px rgba(46, 204, 113, .35);
+  animation: pointsRise 1.2s ease-out forwards;
+  pointer-events: none;
+}
+
 /* ─── ANIMATIONS ─── */
 .fade-in {
   animation: fadeIn .35s ease;
@@ -1180,6 +1221,48 @@ body {
   to {
     opacity: 1;
     transform: translateY(0)
+  }
+}
+
+@keyframes flamePulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes flameFlicker {
+  0% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.25);
+  }
+
+  100% {
+    filter: brightness(1.05);
+  }
+}
+
+@keyframes pointsRise {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(.94);
+  }
+
+  25% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(.98);
   }
 }
 

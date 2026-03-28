@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import './App.css';
 import {
@@ -61,6 +61,13 @@ const pickNodeAnimation = (seed: number) => {
 
 const nodeAnimationSide = (rowIndex: number) => (rowIndex % 2 === 0 ? 'right' : 'left');
 
+const FlameIcon = ({ hot }: { hot: boolean }) => (
+    <svg className={`streak-flame ${hot ? 'hot' : ''}`} viewBox="0 0 24 24" aria-hidden="true" role="img">
+        <path d="M12 2C13 5 17 6.5 17 11a5 5 0 1 1-10 0c0-2.2 1.2-3.7 2.6-5.1C10.8 4.7 11.5 3.6 12 2z" fill="#ff8a00" />
+        <path d="M12.2 8c.3 1.3 1.8 1.8 1.8 3.6a2.7 2.7 0 1 1-5.4 0c0-1.3.8-2.1 1.6-2.9.7-.7 1.5-1.3 2-2.7z" fill="#ffd63f" />
+    </svg>
+);
+
 function App() {
     const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -103,10 +110,28 @@ function App() {
         const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
         return { ...picked, done: false };
     });
+    const [animatedTopPoints, setAnimatedTopPoints] = useState(0);
+    const [animatedProfilePoints, setAnimatedProfilePoints] = useState(0);
+    const [pointsDeltaToast, setPointsDeltaToast] = useState<{ id: number; delta: number } | null>(null);
+    const pointsPrevRef = useRef(points);
+    const pointsReadyRef = useRef(false);
 
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
         setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
+    };
+
+    const animateCount = (target: number, setter: React.Dispatch<React.SetStateAction<number>>) => {
+        const start = performance.now();
+        const duration = 800;
+        const from = 0;
+        const step = (now: number) => {
+            const elapsed = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - elapsed, 3);
+            setter(Math.round(from + (target - from) * eased));
+            if (elapsed < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
     };
 
     useEffect(() => {
@@ -115,6 +140,41 @@ function App() {
         }, 2600);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (!isLoggedIn) return;
+        animateCount(points, setAnimatedTopPoints);
+    }, [isLoggedIn, points]);
+
+    useEffect(() => {
+        if (!isLoggedIn || currentScreen !== 'profile') return;
+        animateCount(points, setAnimatedProfilePoints);
+    }, [isLoggedIn, currentScreen, points]);
+
+    useEffect(() => {
+        if (!isLoggedIn) {
+            pointsPrevRef.current = points;
+            pointsReadyRef.current = false;
+            return;
+        }
+
+        if (!pointsReadyRef.current) {
+            pointsReadyRef.current = true;
+            pointsPrevRef.current = points;
+            return;
+        }
+
+        const delta = points - pointsPrevRef.current;
+        if (delta > 0) {
+            const id = Date.now();
+            setPointsDeltaToast({ id, delta });
+            setTimeout(() => {
+                setPointsDeltaToast((prev) => (prev?.id === id ? null : prev));
+            }, 1200);
+        }
+
+        pointsPrevRef.current = points;
+    }, [points, isLoggedIn]);
 
     const closeModal = () => setModal({ ...modal, isOpen: false });
 
@@ -463,8 +523,8 @@ function App() {
                     <span>AURA</span>
                 </div>
                 <div className="topbar-stats">
-                    <div className="stat-pill"><span className="icon">🔥</span> {streak}</div>
-                    <div className="stat-pill"><span className="icon">🪙</span> {points} pts</div>
+                    <div className="stat-pill streak-pill"><FlameIcon hot={streak > 7} /><span className="streak-count">{streak}</span></div>
+                    <div className="stat-pill"><span className="icon">🪙</span> {animatedTopPoints} pts</div>
                 </div>
             </div>
 
@@ -655,11 +715,14 @@ function App() {
                     <div className="profile-name">{user?.name}</div>
                     <div className="profile-title">{user?.rollNo} • {user?.domain} {user?.role === 'admin' ? '(Admin)' : ''}</div>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '12px' }}>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>{points}</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Points</div></div>
+                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>{animatedProfilePoints}</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Points</div></div>
                         <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
                         <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>3</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Badges</div></div>
                         <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>{streak}</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Streak</div></div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div className="profile-streak-value" style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}><FlameIcon hot={streak > 7} />{streak}</div>
+                            <div style={{ fontSize: '.72rem', opacity: .7 }}>Streak</div>
+                        </div>
                     </div>
                 </div>
                 <div className="progress-block">
@@ -1021,6 +1084,7 @@ function App() {
 
             {/* NOTIFICATION */}
             <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
+            {pointsDeltaToast && <div className="points-rise-toast">+{pointsDeltaToast.delta} pts</div>}
         </div>
     );
 }
