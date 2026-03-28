@@ -13,6 +13,16 @@ import {
 
 type Role = 'student' | 'admin';
 type Screen = 'path' | 'leaderboard' | 'users' | 'profile' | 'admin';
+type ConfettiPiece = {
+    id: number;
+    left: number;
+    delay: number;
+    drift: number;
+    rotate: number;
+    hue: number;
+    duration: number;
+    size: number;
+};
 
 const avatarColor = (name: string) => {
     const colors = ['#f59e0b', '#22c55e', '#06b6d4', '#f97316', '#3b82f6', '#ef4444', '#14b8a6'];
@@ -22,6 +32,18 @@ const avatarColor = (name: string) => {
 };
 
 const parsePts = (value: string) => Number(value.replace(/\D/g, '')) || 0;
+
+const createConfettiPieces = (count = 30): ConfettiPiece[] =>
+    Array.from({ length: count }, (_, index) => ({
+        id: index,
+        left: Math.random() * 100,
+        delay: Math.floor(Math.random() * 260),
+        drift: Math.floor(Math.random() * 140 - 70),
+        rotate: Math.floor(Math.random() * 360 + 220),
+        hue: [42, 48, 55, 22, 96][Math.floor(Math.random() * 5)],
+        duration: Math.floor(Math.random() * 900 + 1200),
+        size: Math.floor(Math.random() * 9 + 7),
+    }));
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -50,6 +72,8 @@ function App() {
     const [userSearch, setUserSearch] = useState('');
     const [userFilterDomain, setUserFilterDomain] = useState('All');
     const [adminTab, setAdminTab] = useState('queue');
+    const [xpBurst, setXpBurst] = useState<{ id: number; amount: number } | null>(null);
+    const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
 
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
@@ -72,6 +96,7 @@ function App() {
 
     const pendingQueue = adminQueue.filter((s) => !approvedSet.has(s.id) && !rejectedSet.has(s.id));
     const completedNodes = pathNodes.filter((n) => n.state === 'done').length;
+    const earnedBadges = badgesData.filter((b) => b.earned).length;
     const progressPercent = (completedNodes / pathNodes.length) * 100;
     const levelTitle = points >= 800 ? 'Campus Legend' : points >= 500 ? 'Club Leader' : 'Rising Contributor';
 
@@ -113,6 +138,8 @@ function App() {
     const completeNode = (id: number) => {
         const node = pathNodes.find((n) => n.id === id);
         if (!node || node.state !== 'active') return;
+        const earned = parsePts(node.pts);
+        const burstId = Date.now();
 
         const updatedNodes = pathNodes.map((n) => {
             if (n.id === id) return { ...n, state: 'done' as const };
@@ -121,9 +148,19 @@ function App() {
         });
 
         setPathNodes(updatedNodes);
-        setPoints((p) => p + parsePts(node.pts));
+        setPoints((p) => p + earned);
+        setXpBurst({ id: burstId, amount: earned });
+        setConfettiPieces(createConfettiPieces());
         closeModal();
         showNotif(`${node.label} completed. ${node.pts} earned.`);
+
+        setTimeout(() => {
+            setXpBurst((prev) => (prev?.id === burstId ? null : prev));
+        }, 1250);
+
+        setTimeout(() => {
+            setConfettiPieces([]);
+        }, 1900);
     };
 
     if (!isLoggedIn) {
@@ -134,10 +171,10 @@ function App() {
 
                 <div className="auth-card">
                     <div className="brand-pill">AURA</div>
-                    <h1>Campus Contributions, Reimagined</h1>
+                    <h1>Learn, Lead, Level Up</h1>
                     <p>
-                        Track impact, reward participation, and make every club activity visible through one gamified
-                        command center.
+                        Aura turns club life into a fun student quest where every contribution earns XP, streaks, and
+                        squad recognition.
                     </p>
 
                     <div className="role-toggle">
@@ -183,7 +220,7 @@ function App() {
                         )}
 
                         <button className="cta" type="submit">
-                            Enter Aura Dashboard
+                            Start My Quest
                         </button>
                     </form>
                 </div>
@@ -197,12 +234,12 @@ function App() {
         <div className="aura-shell">
             <header className="topbar">
                 <div>
-                    <div className="topbar-brand">Aura</div>
-                    <div className="topbar-sub">{levelTitle}</div>
+                    <div className="topbar-brand">🏠 ALIET Clubs</div>
+                    <div className="topbar-sub">{user?.role === 'admin' ? 'Admin Mode' : levelTitle}</div>
                 </div>
                 <div className="topbar-stats">
-                    <div className="stat-chip">Streak {streak}</div>
-                    <div className="stat-chip accent">{points} pts</div>
+                    <div className="stat-chip">🔥 {streak}</div>
+                    <div className="stat-chip accent">🪙 {points} pts</div>
                 </div>
             </header>
 
@@ -212,7 +249,7 @@ function App() {
                     <p>
                         {user?.role === 'admin'
                             ? 'Manage validation queue and boost contributor momentum.'
-                            : 'Complete missions, climb rankings, and unlock badges.'}
+                            : 'Crush mini missions, top the campus board, and collect shiny badges.'}
                     </p>
                 </div>
                 <div className="hero-progress">
@@ -231,11 +268,11 @@ function App() {
                     <section className="screen show">
                         <article className="daily-mission">
                             <h3>Daily Quest</h3>
-                            <p>Ask one meaningful question in a seminar and upload reflection.</p>
-                            <span>Reward +15 pts</span>
+                            <p>Ask one smart seminar question, then drop a 2-line reflection.</p>
+                            <span>Reward +15 XP</span>
                         </article>
 
-                        <h3 className="section-title">Activity Journey</h3>
+                        <h3 className="section-title">My Learning Trail</h3>
                         <div className="path-list">
                             {pathNodes.map((node, index) => (
                                 <div className="path-item" key={node.id}>
@@ -265,24 +302,32 @@ function App() {
 
                 {currentScreen === 'leaderboard' && (
                     <section className="screen show">
-                        <h3 className="section-title">Leaderboard</h3>
-                        <div className="domain-pills">
-                            {['Academic', 'Tech', 'Media', 'Events'].map((d) => (
-                                <button key={d} className={lbDomain === d ? 'active' : ''} onClick={() => setLbDomain(d)}>
-                                    {d}
-                                </button>
-                            ))}
+                        <h3 className="section-title">LEADERBOARD - {lbDomain} Domain</h3>
+                        <div className="leaderboard-select-row">
+                            <label>
+                                DOMAIN:
+                                <select value={lbDomain} onChange={(e) => setLbDomain(e.target.value)}>
+                                    {['Academic', 'Tech', 'Media', 'Events'].map((d) => (
+                                        <option key={d} value={d}>
+                                            {d}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
                         </div>
 
                         <div className="rank-list">
                             {(lbData[lbDomain] || []).map((item, i) => (
                                 <div className={`rank-row ${item.you ? 'you' : ''}`} key={i}>
-                                    <div className="rank-num">#{i + 1}</div>
+                                    <div className={`rank-num badge-${i + 1 > 3 ? 'n' : i + 1}`}>#{i + 1}</div>
                                     <div className="avatar small" style={{ background: avatarColor(item.name) }}>
                                         {item.name[0]}
                                     </div>
                                     <div className="rank-name">{item.name}</div>
-                                    <div className="rank-pts">{item.pts}</div>
+                                    <div className="rank-pts">{item.pts} pts</div>
+                                    {item.promo && <div className="promo-chip">Promotion</div>}
+                                    {item.demo && <div className="demo-chip">Demotion</div>}
+                                    {item.you && <div className="you-chip">YOU</div>}
                                 </div>
                             ))}
                         </div>
@@ -291,7 +336,7 @@ function App() {
 
                 {currentScreen === 'users' && (
                     <section className="screen show">
-                        <h3 className="section-title">Contributors Directory</h3>
+                        <h3 className="section-title">Student Squad</h3>
 
                         <div className="search-row">
                             <input
@@ -330,23 +375,49 @@ function App() {
 
                 {currentScreen === 'profile' && (
                     <section className="screen show">
-                        <div className="profile-hero">
-                            <div className="avatar large" style={{ background: avatarColor(user?.name || 'Aura') }}>
-                                {user?.name[0] || 'A'}
-                            </div>
+                        <div className="profile-hero dark-home">
+                            <div className="home-greeting">GOOD MORNING</div>
                             <h3>{user?.name}</h3>
-                            <p>
-                                {user?.rollNo} · {user?.domain}
-                            </p>
+                            <p>{user?.rollNo}</p>
+                            <div className="points-rank-card">
+                                <div>
+                                    <small>AURA POINTS</small>
+                                    <strong>{points.toLocaleString()}</strong>
+                                    <span>+120 this week</span>
+                                </div>
+                                <div className="rank-panel">
+                                    <small>Rank</small>
+                                    <strong>#4</strong>
+                                    <span>of 128</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <article className="card">
+                        <h3 className="section-title">THIS MONTH</h3>
+                        <div className="month-grid">
+                            <article className="month-tile">
+                                <strong>{completedNodes + 10}</strong>
+                                <span>Events</span>
+                            </article>
+                            <article className="month-tile">
+                                <strong>{earnedBadges}</strong>
+                                <span>Badges</span>
+                            </article>
+                            <article className="month-tile">
+                                <strong>{streak}</strong>
+                                <span>Day streak</span>
+                            </article>
+                        </div>
+
+                        <article className="card streak-card">
                             <div className="card-head">
-                                <span>Total Progress</span>
-                                <strong>{points}/1000</strong>
+                                <span>STREAK</span>
+                                <strong>{streak} day streak</strong>
                             </div>
-                            <div className="bar">
-                                <div style={{ width: `${Math.min((points / 1000) * 100, 100)}%` }}></div>
+                            <div className="streak-dots">
+                                {Array.from({ length: 7 }, (_, i) => (
+                                    <span key={i} className={streak > i ? 'active' : ''}></span>
+                                ))}
                             </div>
                         </article>
 
@@ -364,13 +435,16 @@ function App() {
                             ))}
                         </div>
 
-                        <h3 className="section-title">Recent Activity</h3>
+                        <h3 className="section-title">RECENT ACTIVITY</h3>
                         <div className="activity-list">
-                            {activityData.map((a, i) => (
+                            {activityData.slice(0, 3).map((a, i) => (
                                 <article className="activity-row" key={i}>
-                                    <span>{a.time}</span>
-                                    <p>{a.text}</p>
-                                    <strong>{a.pts}</strong>
+                                    <div className="act-icon">◎</div>
+                                    <div>
+                                        <p>{a.text}</p>
+                                        <span>{a.time}</span>
+                                    </div>
+                                    <strong>+{parsePts(a.pts)}</strong>
                                 </article>
                             ))}
                         </div>
@@ -383,7 +457,7 @@ function App() {
 
                 {currentScreen === 'admin' && (
                     <section className="screen show">
-                        <h3 className="section-title">Approvals Center</h3>
+                        <h3 className="section-title">Coach Review Zone</h3>
 
                         <div className="domain-pills">
                             {['queue', 'validated', 'rejected'].map((tab) => (
@@ -401,6 +475,7 @@ function App() {
                                         <h4>{s.name}</h4>
                                         <p>{s.task}</p>
                                         <small>{s.desc}</small>
+                                        {s.hasImg && <div className="evidence-box">Evidence Preview</div>}
                                         <div className="action-row">
                                             <button onClick={() => approveSubmission(s.id, s.pts)}>Approve +{s.pts}</button>
                                             <button className="ghost" onClick={() => rejectSubmission(s.id)}>
@@ -443,20 +518,25 @@ function App() {
 
             <nav className="bottom-nav">
                 <button className={currentScreen === 'path' ? 'active' : ''} onClick={() => setCurrentScreen('path')}>
-                    Path
+                    <span>🏠</span>
+                    Home
                 </button>
                 <button className={currentScreen === 'leaderboard' ? 'active' : ''} onClick={() => setCurrentScreen('leaderboard')}>
-                    Board
+                    <span>🛡️</span>
+                    Ranks
                 </button>
                 <button className={currentScreen === 'users' ? 'active' : ''} onClick={() => setCurrentScreen('users')}>
-                    People
+                    <span>👥</span>
+                    Users
                 </button>
                 {user?.role === 'admin' && (
                     <button className={currentScreen === 'admin' ? 'active' : ''} onClick={() => setCurrentScreen('admin')}>
+                        <span>📋</span>
                         Approvals
                     </button>
                 )}
                 <button className={currentScreen === 'profile' ? 'active' : ''} onClick={() => setCurrentScreen('profile')}>
+                    <span>👤</span>
                     Me
                 </button>
             </nav>
@@ -513,6 +593,31 @@ function App() {
                     )}
                 </div>
             </div>
+
+            <div className={`confetti-layer ${confettiPieces.length ? 'show' : ''}`}>
+                {confettiPieces.map((piece) => (
+                    <span
+                        key={`${piece.id}-${piece.delay}`}
+                        className="confetti-piece"
+                        style={{
+                            left: `${piece.left}%`,
+                            width: `${piece.size}px`,
+                            height: `${Math.max(6, Math.floor(piece.size * 0.72))}px`,
+                            animationDelay: `${piece.delay}ms`,
+                            animationDuration: `${piece.duration}ms`,
+                            ['--confetti-drift' as string]: `${piece.drift}px`,
+                            ['--confetti-rotate' as string]: `${piece.rotate}deg`,
+                            ['--confetti-hue' as string]: `${piece.hue}`,
+                        } as React.CSSProperties}
+                    ></span>
+                ))}
+            </div>
+
+            {xpBurst && (
+                <div key={xpBurst.id} className="xp-burst">
+                    +{xpBurst.amount} XP
+                </div>
+            )}
 
             <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
         </div>
