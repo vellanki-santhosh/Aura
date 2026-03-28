@@ -33,7 +33,7 @@ const pickNodeAnimation = (seed: number) => {
     return PATH_ANIMATIONS[index];
 };
 
-const nodeAnimationSide = (seed: number) => (Math.abs((seed * 97 + 31) % 100) % 2 === 0 ? 'left' : 'right');
+const nodeAnimationSide = (rowIndex: number) => (rowIndex % 2 === 0 ? 'right' : 'left');
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -317,7 +317,7 @@ function App() {
                             <div className="path-node-sub">{node.sub}</div>
                             <div className="path-node-pts">{node.pts}</div>
 
-                            <div className={`path-node-animation ${nodeAnimationSide(node.id + i)}`}>
+                            <div className={`path-node-animation ${nodeAnimationSide(i)}`}>
                                 <DotLottieReact
                                     src={pickNodeAnimation(node.id + i).src}
                                     loop
