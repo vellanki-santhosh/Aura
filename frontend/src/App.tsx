@@ -462,7 +462,7 @@ function App() {
                     ))}
                 </div>
                 <div id="lb-list">
-                    {lbData[lbDomain]?.map(item => (item.you ? { ...item, pts: points } : item))
+                    {lbData[lbDomain]?.map(item => (item.you ? { ...item, pts: points, name: user?.name || item.name } : item))
                         .sort((a, b) => b.pts - a.pts)
                         .map((item, i) => (
                             <div className={`lb-row ${item.you ? 'you' : ''}`} key={i}>
