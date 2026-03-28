@@ -87,7 +87,15 @@ export const pathNodes = [
 ];
 
 // ─── LEADERBOARD ─────────────────────────────────────────────
-export const lbData: Record<string, any[]> = {
+export interface LeaderboardEntry {
+    name: string;
+    pts: number;
+    promo?: boolean;
+    you?: boolean;
+    demo?: boolean;
+}
+
+export const lbData: Record<string, LeaderboardEntry[]> = {
     Academic: [
         { name: 'Kiran R.', pts: 620, promo: true },
         { name: 'Sana K.', pts: 580, promo: false },

@@ -1,0 +1,37 @@
+{
+  "name": "AURA - Student Leadership Platform",
+  "short_name": "AURA",
+  "description": "Gamified platform for tracking campus contributions and student leadership",
+  "start_url": "/Aura/",
+  "scope": "/Aura/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#2ECC71",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/Aura/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Aura/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "screenshots": [
+    {
+      "src": "/Aura/logo.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}

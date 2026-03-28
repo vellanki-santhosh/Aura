@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import './App.css';
 import {
     pathNodes as initialPathNodes,
@@ -12,9 +11,92 @@ import {
     adminRejected as initialAdminRejected,
     initialEvents
 } from './data/mockData';
+import type { LeaderboardEntry } from './data/mockData';
+import TeamScreen from './components/TeamScreen';
+const PathScreen = lazy(() => import('./components/PathScreen'));
+const EventsScreen = lazy(() => import('./components/EventsScreen'));
+const LeaderboardScreen = lazy(() => import('./components/LeaderboardScreen'));
+const UsersScreen = lazy(() => import('./components/UsersScreen'));
+const ProfileScreen = lazy(() => import('./components/ProfileScreen'));
+const AdminScreen = lazy(() => import('./components/AdminScreen'));
+const StudentSettingsScreen = lazy(() => import('./components/StudentSettingsScreen'));
+import BottomNav from './components/BottomNav';
+import LoginScreen from './components/LoginScreen';
+import NotifToast from './components/NotifToast';
+import Modal from './components/Modal';
+
+interface PathNode {
+    id: number;
+    icon: string;
+    label: string;
+    sub: string;
+    pts: string;
+    state: 'done' | 'active' | 'locked' | 'pending';
+    domain: string;
+    proofType: string;
+}
+
+interface UserData {
+    initials: string;
+    name: string;
+    role: string;
+    pts: number;
+    badges: string[];
+    available: boolean;
+    domain: string;
+}
+
+interface AdminQueueItem {
+    initials: string;
+    name: string;
+    time: string;
+    task: string;
+    desc: string;
+    pts: number;
+    hasImg: boolean;
+    id: string;
+    nodeId?: number;
+}
+
+interface Event {
+    id: number;
+    title: string;
+    date: string;
+    loc: string;
+    desc: string;
+}
+
+interface SurpriseMission {
+    title: string;
+    reward: number;
+    done: boolean;
+}
+
+interface TeamChallenge {
+    id: string;
+    title: string;
+    domain: string;
+    deadline: string;
+    target: number;
+    completed: number;
+    members: Array<{ name: string; initials: string }>;
+    bonusAwarded: boolean;
+}
+
+interface LiveTickerItem {
+    id: string;
+    text: string;
+    screen: string;
+    lbDomain?: string;
+}
+
+type ModalState =
+    | { isOpen: false; type: ''; data: null }
+    | { isOpen: true; type: 'node'; data: PathNode }
+    | { isOpen: true; type: 'user'; data: UserData };
 
 // --- HELPERS ---
-const avatarColor = (name: string) => {
+const avatarColor = (name: string): string => {
     const colors = ['#FFD600', '#A5D6A7', '#90CAF9', '#FFCC80', '#CE93D8', '#F48FB1', '#80CBC4'];
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % colors.length;
@@ -29,6 +111,8 @@ const PATH_ANIMATIONS = [
     { label: 'Skull Boy', src: `${import.meta.env.BASE_URL}animations/skull-boy.lottie` },
 ];
 const SPIN_REWARDS = [10, 15, 20, 30, 40, 50];
+const GITHUB_REPO_URL_REGEX = /^https?:\/\/(www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/.*)?$/i;
+const EVENT_KEYWORD_REGEX = /event|workshop|bootcamp|festival|meet|night|seminar/i;
 const SURPRISE_MISSIONS = [
     { title: 'Help 1 junior with a doubt', reward: 12 },
     { title: 'Post one club update', reward: 15 },
@@ -91,23 +175,31 @@ const TEAM_CHALLENGES_SEED = [
     },
 ];
 
-const pickNodeAnimation = (seed: number) => {
+const pickNodeAnimation = (seed: number): { label: string; src: string } => {
     const index = Math.abs((seed * 9301 + 49297) % 233280) % PATH_ANIMATIONS.length;
     return PATH_ANIMATIONS[index];
 };
 
-const nodeAnimationSide = (rowIndex: number) => (rowIndex % 2 === 0 ? 'right' : 'left');
-const connectorState = (state: string) => {
+const nodeAnimationSide = (rowIndex: number): 'left' | 'right' => (rowIndex % 2 === 0 ? 'right' : 'left');
+const connectorState = (state: string): 'done' | 'active' | 'locked' => {
     if (state === 'done') return 'done';
     if (state === 'active' || state === 'pending') return 'active';
     return 'locked';
 };
+
+const requiresGithubUrl = (proofType?: string): boolean => /github|repository/i.test(proofType || '');
 
 const FlameIcon = ({ hot }: { hot: boolean }) => (
     <svg className={`streak-flame ${hot ? 'hot' : ''}`} viewBox="0 0 24 24" aria-hidden="true" role="img">
         <path d="M12 2C13 5 17 6.5 17 11a5 5 0 1 1-10 0c0-2.2 1.2-3.7 2.6-5.1C10.8 4.7 11.5 3.6 12 2z" fill="#ff8a00" />
         <path d="M12.2 8c.3 1.3 1.8 1.8 1.8 3.6a2.7 2.7 0 1 1-5.4 0c0-1.3.8-2.1 1.6-2.9.7-.7 1.5-1.3 2-2.7z" fill="#ffd63f" />
     </svg>
+);
+
+const ScreenFallback = () => (
+    <div className="suspense-spinner-wrap">
+        <div className="suspense-spinner" aria-label="Loading" />
+    </div>
 );
 
 function App() {
@@ -131,15 +223,15 @@ function App() {
     const [points, setPoints] = useState(470);
     const [streak] = useState(14);
     const [notif, setNotif] = useState<{ msg: string; show: boolean }>({ msg: '', show: false });
-    const [modal, setModal] = useState<{ isOpen: boolean; type: string; data: any }>({ isOpen: false, type: '', data: null });
+    const [modal, setModal] = useState<ModalState>({ isOpen: false, type: '', data: null });
 
     // Data States
-    const [pathNodes, setPathNodes] = useState(initialPathNodes);
-    const [users, setUsers] = useState(initialUsersData);
-    const [adminQueue, setAdminQueue] = useState(initialAdminQueue);
-    const [adminValidated, setAdminValidated] = useState(initialAdminValidated);
-    const [adminRejected, setAdminRejected] = useState(initialAdminRejected);
-    const [events, setEvents] = useState(initialEvents);
+    const [pathNodes, setPathNodes] = useState<PathNode[]>(initialPathNodes as PathNode[]);
+    const [users, setUsers] = useState<UserData[]>(initialUsersData as UserData[]);
+    const [adminQueue, setAdminQueue] = useState<AdminQueueItem[]>(initialAdminQueue as AdminQueueItem[]);
+    const [adminValidated, setAdminValidated] = useState<AdminQueueItem[]>(initialAdminValidated as AdminQueueItem[]);
+    const [adminRejected, setAdminRejected] = useState<AdminQueueItem[]>(initialAdminRejected as AdminQueueItem[]);
+    const [events, setEvents] = useState<Event[]>(initialEvents as Event[]);
     const [approvedSet, setApprovedSet] = useState(new Set<string>());
     const [rejectedSet, setRejectedSet] = useState(new Set<string>());
     const [registeredSet, setRegisteredSet] = useState(new Set<number>());
@@ -148,11 +240,11 @@ function App() {
     const [isSpinning, setIsSpinning] = useState(false);
     const [spinReward, setSpinReward] = useState<number | null>(null);
     const [tickerIndex, setTickerIndex] = useState(0);
-    const [surpriseMission, setSurpriseMission] = useState(() => {
+    const [surpriseMission, setSurpriseMission] = useState<SurpriseMission>(() => {
         const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
         return { ...picked, done: false };
     });
-    const [teamChallenges, setTeamChallenges] = useState(
+    const [teamChallenges, setTeamChallenges] = useState<TeamChallenge[]>(
         TEAM_CHALLENGES_SEED.map((c) => ({ ...c, bonusAwarded: false }))
     );
     const [teamConfettiChallengeId, setTeamConfettiChallengeId] = useState<string | null>(null);
@@ -162,13 +254,20 @@ function App() {
     const [pointsDeltaToast, setPointsDeltaToast] = useState<{ id: number; delta: number } | null>(null);
     const pointsPrevRef = useRef(points);
     const pointsReadyRef = useRef(false);
+    const cameraProofInputRef = useRef<HTMLInputElement | null>(null);
+    const fileProofInputRef = useRef<HTMLInputElement | null>(null);
+    const [photoProof, setPhotoProof] = useState<File | null>(null);
+    const [fileProof, setFileProof] = useState<File | null>(null);
+    const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>('');
+    const [githubProofUrl, setGithubProofUrl] = useState('');
+    const [isUploadingProof, setIsUploadingProof] = useState(false);
 
-    const showNotif = (msg: string) => {
+    const showNotif = useCallback((msg: string): void => {
         setNotif({ msg, show: true });
         setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
-    };
+    }, []);
 
-    const animateCount = (target: number, setter: React.Dispatch<React.SetStateAction<number>>) => {
+    const animateCount = (target: number, setter: React.Dispatch<React.SetStateAction<number>>): void => {
         const start = performance.now();
         const duration = 800;
         const from = 0;
@@ -180,13 +279,6 @@ function App() {
         };
         requestAnimationFrame(step);
     };
-
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTickerIndex((prev) => (prev + 1) % 4);
-        }, 2600);
-        return () => clearInterval(timer);
-    }, []);
 
     useEffect(() => {
         if (!isLoggedIn) return;
@@ -223,13 +315,34 @@ function App() {
         pointsPrevRef.current = points;
     }, [points, isLoggedIn]);
 
-    const closeModal = () => setModal({ ...modal, isOpen: false });
+    useEffect(() => {
+        return () => {
+            if (photoPreviewUrl) {
+                URL.revokeObjectURL(photoPreviewUrl);
+            }
+        };
+    }, [photoPreviewUrl]);
 
-    const handleOnboardingSwipeStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    useEffect(() => {
+        if (!modal.isOpen || modal.type !== 'node') {
+            setPhotoProof(null);
+            setFileProof(null);
+            setGithubProofUrl('');
+            setIsUploadingProof(false);
+            setPhotoPreviewUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return '';
+            });
+        }
+    }, [modal.isOpen, modal.type]);
+
+    const closeModal = (): void => setModal((prev) => ({ ...prev, isOpen: false }));
+
+    const handleOnboardingSwipeStart = (e: React.TouchEvent<HTMLDivElement>): void => {
         setTouchStartX(e.touches[0].clientX);
     };
 
-    const handleOnboardingSwipeEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const handleOnboardingSwipeEnd = (e: React.TouchEvent<HTMLDivElement>): void => {
         if (touchStartX === null) return;
         const delta = e.changedTouches[0].clientX - touchStartX;
         if (Math.abs(delta) > 45) {
@@ -242,7 +355,7 @@ function App() {
         setTouchStartX(null);
     };
 
-    const completeOnboarding = () => {
+    const completeOnboarding = (): void => {
         if (onboardingExit) return;
         setOnboardingExit(true);
         setTimeout(() => {
@@ -256,7 +369,7 @@ function App() {
     };
 
     // Login handler
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = useCallback((e: React.FormEvent): void => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
         const name = formData.get('name') as string;
@@ -272,20 +385,20 @@ function App() {
         setIsLoggedIn(true);
         showNotif(`👋 Welcome, ${name}!`);
         setCurrentScreen('path');
-    };
+    }, [loginRole, showNotif]);
 
-    const handleLogout = () => {
+    const handleLogout = (): void => {
         setIsLoggedIn(false);
         setUser(null);
         showNotif('👋 Safely logged out');
     };
 
-    const shareContributionOnLinkedIn = async () => {
+    const shareContributionOnLinkedIn = useCallback(async (): Promise<void> => {
         if (typeof window === 'undefined') return;
 
         const completedCount = pathNodes.filter((n) => n.state === 'done').length;
         const badgeCount = badgesData.filter((b) => b.earned).length;
-        const rankData = lbData[user?.domain || 'Academic'] || [];
+        const rankData = (lbData as Record<string, LeaderboardEntry[]>)[user?.domain || 'Academic'] || [];
         const rankPosition =
             rankData
                 .map((item) => (item.you ? { ...item, name: user?.name || item.name, pts: points } : item))
@@ -330,7 +443,7 @@ function App() {
 
         window.open(shareUrl, '_blank', 'noopener,noreferrer');
         showNotif(copied ? '🔗 LinkedIn opened. Post text + image link copied.' : '🔗 LinkedIn opened. Copy post text manually if needed.');
-    };
+    }, [pathNodes, points, streak, user, showNotif]);
 
     // Leaderboard Domain logic
     const [lbDomain, setLbDomain] = useState('Academic');
@@ -339,25 +452,80 @@ function App() {
     const [userSearch, setUserSearch] = useState('');
     const [userFilterDomain, setUserFilterDomain] = useState('All');
 
-    const filteredUsers = users.filter(u =>
+    const liveTickerItems = useMemo<LiveTickerItem[]>(() => {
+        const activityItems = activityData.map((a, i) => ({
+            id: `activity-${i}`,
+            text: `✨ ${a.text} (${a.pts})`,
+            screen: EVENT_KEYWORD_REGEX.test(a.text) ? 'events' : 'path',
+        }));
+
+        const leaderboardItems = Object.entries(lbData as Record<string, LeaderboardEntry[]>)
+            .map(([domain, rows]) => {
+            const top = rows[0];
+                if (!top) return null;
+                return {
+                    id: `lb-${domain}`,
+                    text: `🏆 ${top.name} just earned ${top.pts} pts in ${domain}`,
+                    screen: 'leaderboard',
+                    lbDomain: domain,
+                };
+            })
+            .filter((item): item is LiveTickerItem => item !== null);
+
+        const newestEvent = events[0]
+            ? [{
+                id: `event-${events[0].id}`,
+                text: `🎉 New event: ${String(events[0].title).replace(/^[^A-Za-z0-9]+\s*/, '')} added`,
+                screen: 'events',
+            }]
+            : [];
+
+        return [...activityItems, ...leaderboardItems, ...newestEvent];
+    }, [events]);
+
+    const activeTickerItem = liveTickerItems.length ? liveTickerItems[tickerIndex % liveTickerItems.length] : null;
+
+    const handleTickerTap = (): void => {
+        if (!activeTickerItem) return;
+        if (activeTickerItem.screen === 'leaderboard' && activeTickerItem.lbDomain) {
+            setLbDomain(activeTickerItem.lbDomain);
+        }
+        setCurrentScreen(activeTickerItem.screen);
+    };
+
+    useEffect(() => {
+        if (liveTickerItems.length === 0) return;
+        const timer = setInterval(() => {
+            setTickerIndex((prev) => (prev + 1) % liveTickerItems.length);
+        }, 3000);
+        return () => clearInterval(timer);
+    }, [liveTickerItems.length]);
+
+    useEffect(() => {
+        if (tickerIndex >= liveTickerItems.length) {
+            setTickerIndex(0);
+        }
+    }, [tickerIndex, liveTickerItems.length]);
+
+    const filteredUsers = useMemo(() => users.filter(u =>
         (userFilterDomain === 'All' || u.domain === userFilterDomain) &&
         (u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
             u.role.toLowerCase().includes(userSearch.toLowerCase()) ||
             u.badges.some(b => b.toLowerCase().includes(userSearch.toLowerCase())))
-    );
+    ), [users, userFilterDomain, userSearch]);
 
     // Admin Queue Filter
     const [adminTab, setAdminTab] = useState('queue');
-    const pendingQueue = adminQueue.filter(s => !approvedSet.has(s.id) && !rejectedSet.has(s.id));
+    const pendingQueue = useMemo(() => adminQueue.filter(s => !approvedSet.has(s.id) && !rejectedSet.has(s.id)), [adminQueue, approvedSet, rejectedSet]);
 
-    const approveSubmission = (id: string, pts: number) => {
+    const approveSubmission = useCallback((id: string, pts: number): void => {
         setApprovedSet(new Set(approvedSet.add(id)));
         setPoints(p => p + pts);
 
         // Find and Finalize Node if linked
         const queueItem = adminQueue.find(s => s.id === id);
-        if (queueItem && (queueItem as any).nodeId) {
-            const nodeId = (queueItem as any).nodeId;
+        if (queueItem?.nodeId !== undefined) {
+            const nodeId = queueItem.nodeId;
             setPathNodes(prev => {
                 const updated = prev.map(n => {
                     if (n.id === nodeId) return { ...n, state: 'done' as const };
@@ -369,21 +537,21 @@ function App() {
             });
         }
         showNotif(`✅ Approved! +${pts} pts awarded`);
-    };
+    }, [approvedSet, adminQueue, showNotif]);
 
-    const rejectSubmission = (id: string) => {
+    const rejectSubmission = useCallback((id: string): void => {
         setRejectedSet(new Set(rejectedSet.add(id)));
         showNotif('❌ Submission rejected');
-    };
+    }, [rejectedSet, showNotif]);
 
-    const completeNode = (id: number) => {
+    const completeNode = (id: number, proofDetails?: { hasImg: boolean; desc?: string }): void => {
         const node = pathNodes.find(n => n.id === id);
         if (node && node.state === 'active') {
             const updatedNodes = pathNodes.map(n => {
                 if (n.id === id) return { ...n, state: 'pending' as const };
                 return n;
             });
-            setPathNodes(updatedNodes as any);
+            setPathNodes(updatedNodes);
 
             // Add to admin queue
             const newSub = {
@@ -391,9 +559,9 @@ function App() {
                 name: user?.name || 'User',
                 time: 'Just now',
                 task: `[${node.label}] (${user?.domain})`,
-                desc: `Submission for ${node.label} activity.`,
+                desc: proofDetails?.desc || `Submission for ${node.label} activity.`,
                 pts: parseInt(node.pts),
-                hasImg: true,
+                hasImg: Boolean(proofDetails?.hasImg),
                 id: `node-${id}-${Date.now()}`,
                 nodeId: id
             };
@@ -404,7 +572,33 @@ function App() {
         }
     };
 
-    const handleNodeTap = (node: any) => {
+    const submitMissionProof = (): void => {
+        if (!modal.data || modal.data.state !== 'active') return;
+
+        const needsGithubUrl = requiresGithubUrl(modal.data.proofType);
+        const githubUrlValid = !needsGithubUrl || GITHUB_REPO_URL_REGEX.test(githubProofUrl.trim());
+        const hasBinaryProof = Boolean(photoProof || fileProof);
+        const isValidProof = needsGithubUrl ? githubUrlValid : hasBinaryProof;
+
+        if (!isValidProof || isUploadingProof) return;
+
+        setIsUploadingProof(true);
+        setTimeout(() => {
+            const details: string[] = [];
+            if (needsGithubUrl) details.push(`GitHub URL: ${githubProofUrl.trim()}`);
+            if (photoProof) details.push(`Photo: ${photoProof.name}`);
+            if (fileProof) details.push(`File: ${fileProof.name}`);
+
+            showNotif('✅ Proof uploaded successfully!');
+            setIsUploadingProof(false);
+            completeNode(modal.data.id, {
+                hasImg: Boolean(photoProof),
+                desc: details.length ? details.join(' • ') : `Submission for ${modal.data.label} activity.`,
+            });
+        }, 1500);
+    };
+
+    const handleNodeTap = (node: PathNode): void => {
         setBouncingNodeId(node.id);
         setTimeout(() => {
             setBouncingNodeId((prev) => (prev === node.id ? null : prev));
@@ -416,7 +610,7 @@ function App() {
         }, 220);
     };
 
-    const playLuckySpin = () => {
+    const playLuckySpin = (): void => {
         if (spinUsed || isSpinning) {
             showNotif('🎰 Lucky spin already used today.');
             return;
@@ -433,20 +627,67 @@ function App() {
         }, 1500);
     };
 
-    const completeSurpriseMission = () => {
+    const completeSurpriseMission = (): void => {
         if (surpriseMission.done) return;
         setPoints((p) => p + surpriseMission.reward);
         setSurpriseMission((prev) => ({ ...prev, done: true }));
         showNotif(`✨ Surprise mission done! +${surpriseMission.reward} pts`);
     };
 
-    const rerollSurpriseMission = () => {
+    const rerollSurpriseMission = (): void => {
         const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
         setSurpriseMission({ ...picked, done: false });
         showNotif('🔄 Surprise mission refreshed.');
     };
 
-    const joinTeamChallenge = (challengeId: string) => {
+    const registerEvent = (eventId: number, title: string): void => {
+        if (points >= 15) {
+            setRegisteredSet(new Set(registeredSet.add(eventId)));
+            setPoints(p => p - 15);
+            showNotif(`📅 Registered for ${title}! -15 pts`);
+        } else {
+            showNotif('⚠️ Not enough points to register!');
+        }
+    };
+
+    const rejectEvent = (eventId: number, title: string): void => {
+        setDeclinedSet(new Set(declinedSet.add(eventId)));
+        showNotif(`❌ You declined ${title}`);
+    };
+
+    const addActivity = (label: string, pts: string): void => {
+        const newNode = {
+            id: pathNodes.length + 1,
+            icon: '🌟',
+            label: label,
+            sub: `Activity added by Admin`,
+            pts: pts,
+            state: 'locked' as const,
+            proofType: 'Evidence of completion',
+            domain: 'General'
+        };
+        setPathNodes([...pathNodes, newNode]);
+        showNotif('🗺️ Path Updated for Students!');
+    };
+
+    const removeActivity = (id: number, label: string): void => {
+        if (confirm(`Remove "${label}"?`)) {
+            setPathNodes(pathNodes.filter(node => node.id !== id));
+            showNotif('🗑️ Activity Removed');
+        }
+    };
+
+    const createEvent = (event: Omit<Event, 'id'>): void => {
+        const newEvent = { id: Date.now(), ...event };
+        setEvents([newEvent, ...events]);
+        showNotif('📅 Event Published Successfully!');
+    };
+
+    const deleteEvent = (id: number): void => {
+        setEvents(events.filter(ev => ev.id !== id));
+    };
+
+    const joinTeamChallenge = (challengeId: string): void => {
         if (!user) return;
 
         const initials = user.name
@@ -567,55 +808,14 @@ function App() {
     // --- LOGIN SCREEN RENDER ---
     if (!isLoggedIn) {
         return (
-            <div className="app-shell" style={{ justifyContent: 'center' }}>
-                <div className="login-screen">
-                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                        <img src={LOGO_URL} alt="AURA Logo" style={{ width: '240px', height: 'auto' }} />
-                        <div className="login-subtitle" style={{ marginTop: '10px' }}>Powering Student Contributions</div>
-                    </div>
-
-                    <div className="login-card">
-                        <div className="login-toggle">
-                            <button
-                                className={`toggle-btn ${loginRole === 'student' ? 'active' : ''}`}
-                                onClick={() => setLoginRole('student')}
-                            >Student</button>
-                            <button
-                                className={`toggle-btn ${loginRole === 'admin' ? 'active' : ''}`}
-                                onClick={() => setLoginRole('admin')}
-                            >Admin</button>
-                        </div>
-
-                        <form onSubmit={handleLogin}>
-                            <div className="input-group">
-                                <label className="input-label">FULL NAME</label>
-                                <input type="text" name="name" className="login-input" placeholder="e.g. John Doe" required />
-                            </div>
-                            <div className="input-group">
-                                <label className="input-label">ROLL NO</label>
-                                <input type="text" name="rollNo" className="login-input" placeholder="e.g. 21X41A05XX" required />
-                            </div>
-
-                            {loginRole === 'student' && (
-                                <div className="input-group">
-                                    <label className="input-label">PRIMARY DOMAIN</label>
-                                    <select name="domain" className="login-select" required>
-                                        <option value="">Select Domain</option>
-                                        <option value="Academic">Academic</option>
-                                        <option value="Tech">Tech</option>
-                                        <option value="Media">Media</option>
-                                        <option value="Events">Events</option>
-                                    </select>
-                                </div>
-                            )}
-
-                            <button type="submit" className="btn btn-yellow" style={{ width: '100%', marginTop: '12px', padding: '14px' }}>
-                                Login to Dashboard
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
+            <div>
+                <LoginScreen
+                    logoUrl={LOGO_URL}
+                    loginRole={loginRole}
+                    onLoginRoleChange={setLoginRole}
+                    onLogin={handleLogin}
+                />
+                <NotifToast show={notif.show} message={notif.msg} />
             </div>
         );
     }
@@ -635,645 +835,260 @@ function App() {
                 </div>
             </div>
 
-            {/* PATH SCREEN */}
-            <div className={`screen ${currentScreen === 'path' ? 'active' : ''} fade-in`}>
-                <div className="quest-bar">
-                    <div className="quest-title">⚡ DAILY QUEST: Ask 1 question in a seminar!</div>
-                    <div className="quest-sub">Reward: +15 pts &nbsp;|&nbsp; Progress: 0/1</div>
-                    <div className="quest-progress"><div className="quest-progress-fill" style={{ width: '0%', transition: 'width 1s ease' }}></div></div>
-                </div>
+            <Suspense fallback={<ScreenFallback />}>
+                <PathScreen
+                    currentScreen={currentScreen}
+                    activeTickerItem={activeTickerItem}
+                    tickerIndex={tickerIndex}
+                    onTickerTap={handleTickerTap}
+                    isSpinning={isSpinning}
+                    spinUsed={spinUsed}
+                    spinReward={spinReward}
+                    surpriseMission={surpriseMission}
+                    logoUrl={LOGO_URL}
+                    pathNodes={pathNodes}
+                    bouncingNodeId={bouncingNodeId}
+                    onPlayLuckySpin={playLuckySpin}
+                    onCompleteSurpriseMission={completeSurpriseMission}
+                    onRerollSurpriseMission={rerollSurpriseMission}
+                    onNodeTap={handleNodeTap}
+                    pickNodeAnimation={pickNodeAnimation}
+                    nodeAnimationSide={nodeAnimationSide}
+                    connectorState={connectorState}
+                />
+            </Suspense>
 
-                <div className="wow-strip">
-                    <div className="wow-card spin-card">
-                        <div className="wow-title">🎰 Lucky Spin</div>
-                        <div className={`spin-wheel ${isSpinning ? 'spinning' : ''}`}>🎡</div>
-                        <div className="wow-sub">Daily random reward for active members</div>
-                        <button className="btn btn-yellow" onClick={playLuckySpin} disabled={spinUsed || isSpinning}>
-                            {isSpinning ? 'Spinning...' : spinUsed ? 'Used Today' : 'Spin Now'}
-                        </button>
-                        {spinReward && <div className="wow-reward">+{spinReward} pts unlocked</div>}
-                    </div>
+            <Suspense fallback={<ScreenFallback />}>
+                <EventsScreen
+                    currentScreen={currentScreen}
+                    events={events}
+                    registeredSet={registeredSet}
+                    declinedSet={declinedSet}
+                    onRegister={registerEvent}
+                    onReject={rejectEvent}
+                />
+            </Suspense>
 
-                    <div className="wow-card mission-card">
-                        <div className="wow-title">🧩 Surprise Mission</div>
-                        <div className="wow-mission-text">{surpriseMission.title}</div>
-                        <div className="wow-sub">Reward: +{surpriseMission.reward} pts</div>
-                        <div className="wow-actions">
-                            <button className="btn btn-green" onClick={completeSurpriseMission} disabled={surpriseMission.done}>
-                                {surpriseMission.done ? 'Completed' : 'Claim'}
-                            </button>
-                            <button className="btn btn-outline" onClick={rerollSurpriseMission}>Reroll</button>
-                        </div>
-                    </div>
-                </div>
+            <Suspense fallback={<ScreenFallback />}>
+                <LeaderboardScreen
+                    currentScreen={currentScreen}
+                    lbDomain={lbDomain}
+                    lbData={lbData}
+                    points={points}
+                    userName={user?.name}
+                    onDomainChange={setLbDomain}
+                    avatarColor={avatarColor}
+                />
+            </Suspense>
 
-                <div className="achievement-ticker">
-                    {[
-                        `🏆 Rank momentum: +${Math.max(1, Math.floor(points / 120))} positions this week`,
-                        `🔥 Streak power: ${streak} day consistency`,
-                        `🗺️ Path progress: ${pathNodes.filter(n => n.state === 'done').length}/${pathNodes.length} nodes done`,
-                        `⚡ Community pulse: ${users.filter(u => u.available).length} peers available now`,
-                    ][tickerIndex]}
-                </div>
+            <Suspense fallback={<ScreenFallback />}>
+                <UsersScreen
+                    currentScreen={currentScreen}
+                    userSearch={userSearch}
+                    userFilterDomain={userFilterDomain}
+                    filteredUsers={filteredUsers}
+                    avatarColor={avatarColor}
+                    onSearchChange={setUserSearch}
+                    onFilterChange={setUserFilterDomain}
+                    onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
+                />
+            </Suspense>
 
-                <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
-                    <img src={LOGO_URL} alt="AURA" style={{ width: '100px', height: 'auto', opacity: 0.9 }} />
-                </div>
+            <TeamScreen
+                currentScreen={currentScreen}
+                teamChallenges={teamChallenges}
+                teamConfettiChallengeId={teamConfettiChallengeId}
+                avatarColor={avatarColor}
+                onJoinChallenge={joinTeamChallenge}
+            />
 
-                <div className="section-title">🧭 Your Activity Path</div>
-                <div className="path-nodes">
-                    {pathNodes.map((node, i) => (
-                        <div className="path-node-wrap" key={node.id}>
-                            {i > 0 && (
-                                <div
-                                    className={`path-connector-simple ${i % 2 === 0 ? 'to-left' : 'to-right'} ${connectorState(pathNodes[i - 1].state)}`}
-                                    aria-hidden="true"
-                                >
-                                    <span className="path-arrow-head"></span>
-                                </div>
-                            )}
-                            <div
-                                className={`path-node ${node.state} ${bouncingNodeId === node.id ? 'tap-bounce' : ''}`}
-                                onClick={() => handleNodeTap(node)}
-                            >
-                                <span className="node-icon">{node.icon}</span>
-                                {node.state === 'done' && (
-                                    <div className="done-check" aria-label="Completed">
-                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                                            <circle cx="12" cy="12" r="12" fill="#2ECC71" />
-                                            <path d="M7.2 12.4l3 3.2 6.6-7" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </div>
-                                )}
-                                {node.state === 'pending' && <div className="done-check" style={{ background: '#2196F3' }}>⏳</div>}
-                                {node.state === 'locked' && (
-                                    <div className="lock-icon" aria-label="Locked">
-                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                                            <path d="M8 10V7a4 4 0 1 1 8 0v3" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-                                            <rect x="5" y="10" width="14" height="10" rx="2" fill="#7d7d7d" stroke="#fff" strokeWidth="1.2" />
-                                            <circle cx="12" cy="15" r="1.2" fill="#fff" />
-                                        </svg>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="path-node-label">{node.label}</div>
-                            <div className="path-node-sub">{node.sub}</div>
-                            <div className="path-node-pts">{node.pts}</div>
+            <Suspense fallback={<ScreenFallback />}>
+                <ProfileScreen
+                    currentScreen={currentScreen}
+                    user={user}
+                    animatedProfilePoints={animatedProfilePoints}
+                    streak={streak}
+                    points={points}
+                    badgesData={badgesData}
+                    activityData={activityData}
+                    onBadgeClick={(name) => showNotif('🎖️ ' + name + ' — Earned!')}
+                    onShareLinkedIn={shareContributionOnLinkedIn}
+                    onLogout={handleLogout}
+                    FlameIcon={FlameIcon}
+                />
+            </Suspense>
 
-                            <div className={`path-node-animation ${nodeAnimationSide(i)}`}>
-                                <DotLottieReact
-                                    src={pickNodeAnimation(node.id + i).src}
-                                    loop
-                                    autoplay
-                                    style={{ width: '78px', height: '78px' }}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            <Suspense fallback={<ScreenFallback />}>
+                <AdminScreen
+                    currentScreen={currentScreen}
+                    adminTab={adminTab}
+                    pendingQueue={pendingQueue}
+                    adminValidated={adminValidated}
+                    adminQueue={adminQueue}
+                    approvedSet={approvedSet}
+                    pathNodes={pathNodes}
+                    events={events}
+                    avatarColor={avatarColor}
+                    onAdminTabChange={setAdminTab}
+                    onApprove={approveSubmission}
+                    onReject={rejectSubmission}
+                    onAddActivity={addActivity}
+                    onRemoveActivity={removeActivity}
+                    onCreateEvent={createEvent}
+                    onDeleteEvent={deleteEvent}
+                />
+            </Suspense>
 
-            {/* EVENTS SCREEN */}
-            <div className={`screen ${currentScreen === 'events' ? 'active' : ''} fade-in`}>
-                <div className="section-title">📅 Upcoming Campus Events</div>
-                <div id="events-list" style={{ padding: '0 16px' }}>
-                    {events.filter(e => !registeredSet.has(e.id) && !declinedSet.has(e.id)).length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>No more events found. You've answered all calls! 🔔</div>
-                    ) : (
-                        events.filter(e => !registeredSet.has(e.id) && !declinedSet.has(e.id)).map(e => (
-                            <div key={e.id} className="card" style={{ margin: '0 0 16px 0', border: '1px solid #f0f0f0', background: '#fff' }}>
-                                <div className="card-inner">
-                                    <div style={{ fontWeight: 900, color: 'var(--dark)' }}>{e.title}</div>
-                                    <div style={{ fontSize: '.75rem', color: 'var(--green-dark)', fontWeight: 800, margin: '4px 0' }}>📍 {e.loc} · 📅 {e.date} · Cost: 🪙 15 pts</div>
-                                    <div style={{ fontSize: '.82rem', color: '#666' }}>{e.desc}</div>
-                                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                                        <button className="btn btn-green" style={{ flex: 1, fontSize: '.75rem', padding: '8px' }} onClick={() => {
-                                            if (points >= 15) {
-                                                setRegisteredSet(new Set(registeredSet.add(e.id)));
-                                                setPoints(p => p - 15);
-                                                showNotif(`📅 Registered for ${e.title}! -15 pts`);
-                                            } else {
-                                                showNotif('⚠️ Not enough points to register!');
-                                            }
-                                        }}>Register (15 pts)</button>
-                                        <button className="btn btn-red" style={{ flex: 1, fontSize: '.75rem', padding: '8px' }} onClick={() => {
-                                            setDeclinedSet(new Set(declinedSet.add(e.id)));
-                                            showNotif(`❌ You declined ${e.title}`);
-                                        }}>Reject</button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
+            <Suspense fallback={<ScreenFallback />}>
+                <StudentSettingsScreen
+                    currentScreen={currentScreen}
+                    user={user}
+                    points={points}
+                    onLogout={handleLogout}
+                />
+            </Suspense>
 
-            {/* LEADERBOARD SCREEN */}
-            <div className={`screen ${currentScreen === 'leaderboard' ? 'active' : ''} fade-in`}>
-                <div className="lb-header">
-                    <div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>🏆 Leaderboard</div>
-                </div>
-                <div className="lb-domain-select">
-                    {['Academic', 'Tech', 'Media', 'Events'].map(d => (
-                        <div key={d} className={`domain-chip ${lbDomain === d ? 'active' : ''}`} onClick={() => setLbDomain(d)}>{d}</div>
-                    ))}
-                </div>
-                <div id="lb-list">
-                    {lbData[lbDomain]?.map(item => (item.you ? { ...item, name: user?.name || item.name, pts: points } : item))
-                        .sort((a, b) => b.pts - a.pts)
-                        .map((item, i) => (
-                            <div className={`lb-row ${item.you ? 'you' : ''}`} key={i}>
-                                <div className={`rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n'}`}>{i + 1}</div>
-                                <div style={{ position: 'relative' }}>
-                                    <div className="avatar sm" style={{ background: avatarColor(item.name) }}>{item.name[0]}</div>
-                                    {item.you && <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: 'var(--yellow)', color: '#000', borderRadius: '3px', fontSize: '.5rem', fontWeight: 800, padding: '0 3px' }}>YOU</div>}
-                                </div>
-                                <div className="lb-name">{item.name} {item.you && <span style={{ fontSize: '.7rem', color: '#999' }}>(you)</span>}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <div className="lb-pts">🪙 {item.pts}</div>
-                                    {item.promo && <div className="promo-tag">▲ Promo</div>}
-                                    {item.demo && <div className="demo-tag">▼ Demo</div>}
-                                </div>
-                            </div>
-                        ))}
-                </div>
-            </div>
-
-            {/* USERS SCREEN */}
-            <div className={`screen ${currentScreen === 'users' ? 'active' : ''} fade-in`}>
-                <div className="section-title">👥 Contributors Directory</div>
-                <div className="search-bar">
-                    <span>🔍</span>
-                    <input type="text" placeholder="Search by Name, Domain, or Badge..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
-                </div>
-                <div style={{ padding: '4px 16px 8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {['All', 'Tech', 'Academic', 'Engagement'].map(d => (
-                        <div key={d} className={`domain-chip ${userFilterDomain === d ? 'active' : ''}`} onClick={() => setUserFilterDomain(d)}>{d}</div>
-                    ))}
-                </div>
-                <div id="users-list">
-                    {filteredUsers.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px', color: '#999', fontSize: '.9rem' }}>No contributors found 😕</div>
-                    ) : (
-                        filteredUsers.map((u, i) => (
-                            <div className="user-row" key={i} onClick={() => setModal({ isOpen: true, type: 'user', data: u })}>
-                                <div className="avatar" style={{ background: avatarColor(u.name) }}>{u.initials}</div>
-                                <div className="user-info">
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <div className="user-name">{u.name}</div>
-                                        <div className="pts-chip">🪙 {u.pts}</div>
-                                    </div>
-                                    <div className="user-role">{u.role}</div>
-                                    <div className="user-badges">{u.badges.map((b, bi) => <span className="badge-pill badge-green" key={bi}>{b}</span>)}</div>
-                                    <div className={`avail-tag ${u.available ? 'avail-yes' : 'avail-no'}`}>
-                                        {u.available ? '✅ Available for Peer Review' : '⛔ Not Available'}
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* TEAM CHALLENGES SCREEN */}
-            <div className={`screen ${currentScreen === 'team' ? 'active' : ''} fade-in`}>
-                <div className="section-title">👥 Team Challenges</div>
-                <div style={{ padding: '0 16px 6px', fontSize: '.82rem', color: '#666', fontWeight: 700 }}>
-                    Join mission squads, complete goals together, unlock bonus rewards.
-                </div>
-
-                <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {teamChallenges.map((challenge) => {
-                        const progressPct = Math.min(100, (challenge.completed / challenge.target) * 100);
-
-                        return (
-                            <div className="card team-challenge-card" key={challenge.id} style={{ margin: 0, position: 'relative' }}>
-                                {teamConfettiChallengeId === challenge.id && (
-                                    <div className="team-confetti-burst" aria-hidden="true">
-                                        {Array.from({ length: 18 }, (_, idx) => (
-                                            <span
-                                                className="team-confetti-dot"
-                                                key={idx}
-                                                style={{
-                                                    left: `${10 + (idx * 5) % 80}%`,
-                                                    animationDelay: `${(idx % 6) * 0.03}s`,
-                                                    background: ['#2ecc71', '#ffd63f', '#f9a825', '#22c55e', '#ff8a00'][idx % 5],
-                                                }}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="card-inner" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                                        <div style={{ fontWeight: 900, color: 'var(--dark)', fontSize: '.96rem' }}>{challenge.title}</div>
-                                        <span className="badge-pill badge-yellow" style={{ margin: 0 }}>{challenge.domain}</span>
-                                    </div>
-
-                                    <div style={{ fontSize: '.74rem', color: '#666', fontWeight: 700 }}>Deadline: {challenge.deadline}</div>
-
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.78rem', fontWeight: 800 }}>
-                                        <span>Progress</span>
-                                        <span>{challenge.completed}/{challenge.target} done</span>
-                                    </div>
-                                    <div className="progress-bar" style={{ marginBottom: 0 }}>
-                                        <div className="progress-fill yellow" style={{ width: `${progressPct}%` }}></div>
-                                    </div>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                        {challenge.members.map((member) => (
-                                            <div
-                                                key={member.name}
-                                                title={member.name}
-                                                style={{
-                                                    width: '28px',
-                                                    height: '28px',
-                                                    borderRadius: '50%',
-                                                    background: avatarColor(member.name),
-                                                    color: '#111',
-                                                    fontWeight: 900,
-                                                    fontSize: '.68rem',
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    border: '2px solid #fff',
-                                                    boxShadow: '0 2px 6px rgba(0,0,0,.12)',
-                                                }}
-                                            >
-                                                {member.initials}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <button
-                                        className="btn btn-yellow"
-                                        style={{ width: '100%' }}
-                                        onClick={() => joinTeamChallenge(challenge.id)}
-                                    >
-                                        Join Challenge
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* PROFILE SCREEN */}
-            <div className={`screen ${currentScreen === 'profile' ? 'active' : ''} fade-in`}>
-                <div className="profile-hero">
-                    <div className="avatar lg" style={{ margin: '0 auto', background: 'rgba(0,0,0,.15)', color: 'var(--dark)' }}>{user?.name[0] || 'U'}</div>
-                    <div className="profile-name">{user?.name}</div>
-                    <div className="profile-title">{user?.rollNo} • {user?.domain} {user?.role === 'admin' ? '(Admin)' : ''}</div>
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '12px' }}>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>{animatedProfilePoints}</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Points</div></div>
-                        <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>3</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Badges</div></div>
-                        <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div className="profile-streak-value" style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}><FlameIcon hot={streak > 7} />{streak}</div>
-                            <div style={{ fontSize: '.72rem', opacity: .7 }}>Streak</div>
-                        </div>
-                    </div>
-                </div>
-                <div className="progress-block">
-                    <div className="progress-label"><span>Overall Progress → Level 2: Leader</span><span>{points}/1000 pts</span></div>
-                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${(points / 1000) * 100}%` }}></div></div>
-                    <div className="progress-label"><span>Current Domain: {user?.domain}</span><span>250/500 pts</span></div>
-                    <div className="progress-bar"><div className="progress-fill yellow" style={{ width: '50%' }}></div></div>
-                </div>
-                <div className="section-title">🎖️ Badges</div>
-                <div className="badges-grid">
-                    {badgesData.map((b, i) => (
-                        <div className={`badge-item ${b.earned ? '' : 'locked-badge'}`} key={i} onClick={() => b.earned && showNotif('🎖️ ' + b.name + ' — Earned!')}>
-                            <div className="badge-icon">{b.icon}</div>
-                            <div className="badge-name">{b.name}</div>
-                        </div>
-                    ))}
-                </div>
-                <div className="section-title">📋 Recent Validations</div>
-                <div id="activity-list">
-                    {activityData.map((a, i) => (
-                        <div className="activity-row" key={i}><div className="time">{a.time}</div><div className="act-text">✅ {a.text}</div><div className="act-pts">{a.pts}</div></div>
-                    ))}
-                </div>
-                <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <button
-                        className="btn"
-                        style={{ width: '100%', background: '#0A66C2', color: '#fff' }}
-                        onClick={shareContributionOnLinkedIn}
-                    >
-                        Share Contribution on LinkedIn
-                    </button>
-                    <button className="btn btn-outline" style={{ width: '100%', borderColor: '#ff4444', color: '#ff4444' }} onClick={handleLogout}>🚪 Logout</button>
-                </div>
-            </div>
-
-            {/* APPROVALS SCREEN */}
-            <div className={`screen ${currentScreen === 'admin' ? 'active' : ''} fade-in`}>
-                <div style={{ background: 'var(--dark)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontFamily: "'Fredoka One'", fontSize: '1.1rem', color: '#fff' }}>Approvals Mode</div>
-                </div>
-                <div className="admin-tabs">
-                    <div className={`admin-tab ${adminTab === 'queue' ? 'active' : ''}`} onClick={() => setAdminTab('queue')}>Queue</div>
-                    <div className={`admin-tab ${adminTab === 'path' ? 'active' : ''}`} onClick={() => setAdminTab('path')}>Path Edit</div>
-                </div>
-
-                {adminTab === 'queue' && (
-                    <div id="admin-queue">
-                        {pendingQueue.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>All caught up! 🎉</div>
-                        ) : (
-                            pendingQueue.map(s => (
-                                <div className="submission-card" key={s.id}>
-                                    <div className="sub-header">
-                                        <div className="avatar sm" style={{ background: avatarColor(s.name) }}>{s.initials}</div>
-                                        <div><div style={{ fontWeight: 800, fontSize: '.88rem' }}>{s.name}</div><div style={{ fontSize: '.72rem', color: '#999' }}>{s.time}</div></div>
-                                        <div style={{ marginLeft: 'auto' }}><span className="pts-chip">+{s.pts} pts</span></div>
-                                    </div>
-                                    <div className="sub-body">
-                                        <div className="sub-task">{s.task}</div>
-                                        <div className="sub-desc">{s.desc}</div>
-                                        {s.hasImg && <div className="sub-evidence"><div style={{ background: 'linear-gradient(135deg,#e8f5e9,#c8e6c9)', borderRadius: '8px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>📸</div></div>}
-                                    </div>
-                                    <div className="sub-actions">
-                                        <button className="btn btn-green" onClick={() => approveSubmission(s.id, s.pts)}>✓ Approve</button>
-                                        <button className="btn btn-red" onClick={() => rejectSubmission(s.id)}>✗ Reject</button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
-
-                {adminTab === 'validated' && (
-                    <div id="admin-validated">
-                        {[...adminValidated, ...adminQueue.filter(s => approvedSet.has(s.id))].map((s, i) => (
-                            <div className="submission-card" key={i}>
-                                <div className="sub-header">
-                                    <div className="avatar sm" style={{ background: avatarColor(s.name) }}>{s.initials}</div>
-                                    <div><div style={{ fontWeight: 800, fontSize: '.88rem' }}>{s.name}</div><div style={{ fontSize: '.72rem', color: '#999' }}>{s.time}</div></div>
-                                    <div style={{ marginLeft: 'auto' }}><span className="pts-chip">+{s.pts} pts</span></div>
-                                </div>
-                                <div className="sub-body"><div className="sub-task">{s.task}</div><div className="sub-desc">{s.desc}</div></div>
-                                <div className="verified-badge">✅ Verified</div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {adminTab === 'path' && (
-                    <div id="admin-path-editor" style={{ padding: '16px' }}>
-                        <div className="section-title" style={{ padding: '0 0 16px' }}>🛠️ Manage Activity Path</div>
-                        <div style={{ background: '#fff', borderRadius: '12px', padding: '12px', boxShadow: 'var(--shadow)', marginBottom: '20px', border: '1px solid #eee' }}>
-                            <div style={{ fontWeight: 800, fontSize: '.9rem', marginBottom: '12px' }}>✨ Add New Activity</div>
-                            <input id="new-node-label" type="text" placeholder="Activity Name (e.g. Design Challenge)" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
-                            <input id="new-node-pts" type="text" placeholder="Points (e.g. +40 pts)" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
-                            <button className="btn btn-yellow" style={{ width: '100%' }} onClick={() => {
-                                const label = (document.getElementById('new-node-label') as HTMLInputElement).value;
-                                const pts = (document.getElementById('new-node-pts') as HTMLInputElement).value;
-                                if (label && pts) {
-                                    const newNode = {
-                                        id: pathNodes.length + 1,
-                                        icon: '🌟',
-                                        label: label,
-                                        sub: `Activity added by Admin`,
-                                        pts: pts,
-                                        state: 'locked' as const,
-                                        proofType: 'Evidence of completion',
-                                        domain: 'General'
-                                    };
-                                    setPathNodes([...pathNodes, newNode]);
-                                    (document.getElementById('new-node-label') as HTMLInputElement).value = '';
-                                    (document.getElementById('new-node-pts') as HTMLInputElement).value = '';
-                                    showNotif('🗺️ Path Updated for Students!');
-                                }
-                            }}>➕ Add Activity</button>
-                        </div>
-
-                        <div style={{ fontWeight: 800, fontSize: '.85rem', color: '#999', marginBottom: '8px' }}>CURRENT PATH PREVIEW:</div>
-                        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #eee' }}>
-                            {pathNodes.map(n => (
-                                <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderBottom: '1px solid #eee' }}>
-                                    <div style={{ fontSize: '1.2rem' }}>{n.icon}</div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 800, fontSize: '.85rem' }}>{n.label}</div>
-                                        <div style={{ fontSize: '.72rem', color: '#666' }}>{n.pts} · {n.state}</div>
-                                    </div>
-                                    <button
-                                        style={{ background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer', padding: '8px' }}
-                                        onClick={() => {
-                                            if (confirm(`Remove "${n.label}"?`)) {
-                                                setPathNodes(pathNodes.filter(node => node.id !== n.id));
-                                                showNotif('🗑️ Activity Removed');
-                                            }
-                                        }}
-                                    >🗑️</button>
-                                    <div className={`badge-pill ${n.state === 'done' ? 'badge-green' : n.state === 'active' ? 'badge-yellow' : 'badge-gray'}`} style={{ fontSize: '.65rem' }}>
-                                        {n.state}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {adminTab === 'events' && (
-                    <div id="admin-events-editor" style={{ padding: '16px' }}>
-                        <div className="section-title" style={{ padding: '0 0 16px' }}>🛠️ Manage Events</div>
-                        <div style={{ background: '#fff', borderRadius: '12px', padding: '12px', boxShadow: 'var(--shadow)', marginBottom: '20px', border: '1px solid #eee' }}>
-                            <div style={{ fontWeight: 800, fontSize: '.9rem', marginBottom: '12px' }}>✨ Create New Event</div>
-                            <input id="ev-title" type="text" placeholder="Event Title" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
-                            <input id="ev-date" type="text" placeholder="Date/Time" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
-                            <input id="ev-loc" type="text" placeholder="Location" className="search-bar" style={{ width: '100%', marginBottom: '10px', height: '42px', padding: '0 12px' }} />
-                            <textarea id="ev-desc" placeholder="Details" className="search-bar" style={{ width: '100%', marginBottom: '10px', minHeight: '80px', padding: '12px', border: 'none', background: '#f5f5f5', borderRadius: '8px', outline: 'none', fontFamily: 'inherit' }} />
-                            <button className="btn btn-yellow" style={{ width: '100%' }} onClick={() => {
-                                const title = (document.getElementById('ev-title') as HTMLInputElement).value;
-                                const date = (document.getElementById('ev-date') as HTMLInputElement).value;
-                                const loc = (document.getElementById('ev-loc') as HTMLInputElement).value;
-                                const desc = (document.getElementById('ev-desc') as HTMLTextAreaElement).value;
-                                if (title && date) {
-                                    const newEvent = { id: Date.now(), title, date, loc, desc };
-                                    setEvents([newEvent, ...events]);
-                                    (document.getElementById('ev-title') as HTMLInputElement).value = '';
-                                    (document.getElementById('ev-date') as HTMLInputElement).value = '';
-                                    (document.getElementById('ev-loc') as HTMLInputElement).value = '';
-                                    (document.getElementById('ev-desc') as HTMLTextAreaElement).value = '';
-                                    showNotif('📅 Event Published Successfully!');
-                                }
-                            }}>➕ Publish Event</button>
-                        </div>
-                        <div style={{ fontWeight: 800, fontSize: '.85rem', color: '#999', marginBottom: '8px' }}>LIVE EVENTS:</div>
-                        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #eee' }}>
-                            {events.map(e => (
-                                <div key={e.id} style={{ padding: '12px', borderBottom: '1px solid #eee' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <div style={{ fontWeight: 800, fontSize: '.85rem' }}>{e.title}</div>
-                                        <button style={{ border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => setEvents(events.filter(ev => ev.id !== e.id))}>🗑️</button>
-                                    </div>
-                                    <div style={{ fontSize: '.72rem', color: 'var(--green-dark)', fontWeight: 700 }}>{e.date} · {e.loc}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* BOTTOM NAV */}
-            <div className="bottom-nav">
-                <button className={`nav-item ${currentScreen === 'path' ? 'active' : ''}`} onClick={() => setCurrentScreen('path')}>
-                    <span className="nav-icon">🧭</span>Path
-                </button>
-                {user?.role === 'student' && (
-                    <button className={`nav-item ${currentScreen === 'events' ? 'active' : ''}`} onClick={() => setCurrentScreen('events')}>
-                        <span className="nav-icon">📅</span>Events
-                    </button>
-                )}
-                <button className={`nav-item ${currentScreen === 'leaderboard' ? 'active' : ''}`} onClick={() => setCurrentScreen('leaderboard')}>
-                    <span className="nav-icon">🏆</span>Leaderboard
-                </button>
-                <button className={`nav-item ${currentScreen === 'users' ? 'active' : ''}`} onClick={() => setCurrentScreen('users')}>
-                    <span className="nav-icon">👥</span>Users
-                </button>
-                <button className={`nav-item ${currentScreen === 'team' ? 'active' : ''}`} onClick={() => setCurrentScreen('team')}>
-                    <span className="nav-icon">👨‍👩‍👧‍👦</span>Team
-                </button>
-                {user?.role === 'admin' && (
-                    <button className={`nav-item ${currentScreen === 'admin' ? 'active' : ''}`} onClick={() => setCurrentScreen('admin')}>
-                        <span className="nav-icon">🔑</span>Approvals
-                    </button>
-                )}
-                <button className={`nav-item ${currentScreen === 'profile' ? 'active' : ''}`} onClick={() => setCurrentScreen('profile')}>
-                    <span className="nav-icon">👤</span>Profile
-                </button>
-            </div>
+            <BottomNav currentScreen={currentScreen} userRole={user?.role} onNavigate={setCurrentScreen} />
 
             {/* MODAL */}
-            <div className={`modal-overlay ${modal.isOpen ? 'open' : ''}`} onClick={closeModal}>
-                <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-                    <div className="modal-handle"></div>
-                    {modal.type === 'node' && modal.data && (
-                        <>
-                            <div className="modal-title">{modal.data.icon} {modal.data.label}</div>
-                            <div style={{ fontSize: '.75rem', color: 'var(--green-dark)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <span>🧩 Require Proof:</span>
-                                <span style={{ background: '#E8F5E9', padding: '2px 8px', borderRadius: '6px' }}>{modal.data.proofType}</span>
-                            </div>
-                            <p style={{ fontSize: '.85rem', color: '#666', marginBottom: '12px' }}>{modal.data.sub} · {modal.data.pts}</p>
-                            {modal.data.state === 'done' ? (
-                                <div style={{ background: '#E8F5E9', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#2E7D32' }}>✅ Completed!</div>
-                            ) : modal.data.state === 'pending' ? (
-                                <div style={{ background: '#E3F2FD', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#1565C0' }}>⏳ Awaiting Admin Approval...</div>
-                            ) : (
-                                <>
-                                    <p style={{ fontSize: '.88rem', marginBottom: '16px' }}>Complete this activity to earn <strong>{modal.data.pts}</strong>. Attach evidence to verify.</p>
+            <Modal isOpen={modal.isOpen} onClose={closeModal}>
+                    {modal.type === 'node' && modal.data && (() => {
+                        const needsGithubUrl = requiresGithubUrl(modal.data.proofType);
+                        const githubUrlValid = !needsGithubUrl || GITHUB_REPO_URL_REGEX.test(githubProofUrl.trim());
+                        const hasBinaryProof = Boolean(photoProof || fileProof);
+                        const canSubmitProof = modal.data.state === 'active' && (needsGithubUrl ? githubUrlValid : hasBinaryProof);
 
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <label className="input-label">ATTACH EVIDENCE (IMAGE/DOC)</label>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            {/* FILES PICKER */}
-                                            <div
-                                                style={{ flex: 1, border: '2px dashed #ddd', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', background: '#f9f9f9', transition: 'all 0.2s' }}
-                                                onClick={() => document.getElementById('proof-upload-files')?.click()}
-                                            >
-                                                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📄</div>
-                                                <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Select Files</div>
+                        return (
+                            <>
+                                <div className="modal-title">{modal.data.icon} {modal.data.label}</div>
+                                <div style={{ fontSize: '.75rem', color: 'var(--green-dark)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <span>🧩 Require Proof:</span>
+                                    <span style={{ background: '#E8F5E9', padding: '2px 8px', borderRadius: '6px' }}>{modal.data.proofType}</span>
+                                </div>
+                                <p style={{ fontSize: '.85rem', color: '#666', marginBottom: '12px' }}>{modal.data.sub} · {modal.data.pts}</p>
+
+                                {modal.data.state === 'done' ? (
+                                    <div style={{ background: '#E8F5E9', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#2E7D32' }}>✅ Completed!</div>
+                                ) : modal.data.state === 'pending' ? (
+                                    <div style={{ background: '#E3F2FD', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#1565C0' }}>⏳ Awaiting Admin Approval...</div>
+                                ) : (
+                                    <>
+                                        <p style={{ fontSize: '.88rem', marginBottom: '16px' }}>Complete this activity to earn <strong>{modal.data.pts}</strong>. Submit valid proof for review.</p>
+
+                                        <div style={{ marginBottom: '16px' }}>
+                                            <label className="input-label">PROOF SUBMISSION</label>
+                                            <div className="proof-options">
+                                                <button type="button" className="proof-option-card" onClick={() => cameraProofInputRef.current?.click()}>
+                                                    <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📸</div>
+                                                    <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Take Photo</div>
+                                                </button>
+                                                <button type="button" className="proof-option-card" onClick={() => fileProofInputRef.current?.click()}>
+                                                    <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📄</div>
+                                                    <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Upload File</div>
+                                                </button>
                                             </div>
-                                            {/* FOLDER PICKER */}
-                                            <div
-                                                style={{ flex: 1, border: '2px dashed #ddd', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', background: '#f9f9f9', transition: 'all 0.2s' }}
-                                                onClick={() => document.getElementById('proof-upload-folder')?.click()}
-                                            >
-                                                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📂</div>
-                                                <div style={{ fontSize: '.75rem', color: '#666', fontWeight: 700 }}>Select Folder</div>
-                                            </div>
+
+                                            <input
+                                                type="file"
+                                                ref={cameraProofInputRef}
+                                                accept="image/*"
+                                                capture="environment"
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => {
+                                                    const selected = e.target.files?.[0] || null;
+                                                    if (selected) {
+                                                        setPhotoProof(selected);
+                                                        setPhotoPreviewUrl((prev) => {
+                                                            if (prev) URL.revokeObjectURL(prev);
+                                                            return URL.createObjectURL(selected);
+                                                        });
+                                                        showNotif('📸 Photo evidence added');
+                                                    }
+                                                    e.currentTarget.value = '';
+                                                }}
+                                            />
+                                            <input
+                                                type="file"
+                                                ref={fileProofInputRef}
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => {
+                                                    const selected = e.target.files?.[0] || null;
+                                                    if (selected) {
+                                                        setFileProof(selected);
+                                                        showNotif(`📎 ${selected.name} attached`);
+                                                    }
+                                                    e.currentTarget.value = '';
+                                                }}
+                                            />
+
+                                            {(photoProof || fileProof) && (
+                                                <div className="proof-preview-wrap">
+                                                    {photoPreviewUrl && (
+                                                        <div className="proof-photo-preview">
+                                                            <img src={photoPreviewUrl} alt="Mission proof preview" />
+                                                        </div>
+                                                    )}
+                                                    <div className="proof-file-meta">
+                                                        {photoProof && <div>📸 {photoProof.name}</div>}
+                                                        {fileProof && <div>📄 {fileProof.name}</div>}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {/* Hidden Inputs */}
-                                        <input
-                                            type="file"
-                                            id="proof-upload-files"
-                                            multiple
-                                            style={{ display: 'none' }}
-                                            onChange={(e) => {
-                                                const files = e.target.files;
-                                                if (files && files.length > 0) {
-                                                    const text = files.length > 1 ? `${files.length} Files Selected` : files[0].name;
-                                                    setModal(prev => ({ ...prev, data: { ...prev.data, attachedFile: text, isFolder: false } }));
-                                                    showNotif(`📎 ${text} attached!`);
-                                                }
-                                            }}
-                                        />
-                                        <input
-                                            type="file"
-                                            id="proof-upload-folder"
-                                            style={{ display: 'none' }}
-                                            {...({ webkitdirectory: "", directory: "" } as any)}
-                                            onChange={(e) => {
-                                                const files = e.target.files;
-                                                if (files && files.length > 0) {
-                                                    const text = `Folder with ${files.length} files`;
-                                                    setModal(prev => ({ ...prev, data: { ...prev.data, attachedFile: text, isFolder: true } }));
-                                                    showNotif(`📎 ${text} attached!`);
-                                                }
-                                            }}
-                                        />
-
-                                        {modal.data.attachedFile && (
-                                            <div style={{ marginTop: '8px', fontSize: '.78rem', color: 'var(--green-dark)', fontWeight: 800, textAlign: 'center' }}>
-                                                {modal.data.isFolder ? '📂' : '📄'} {modal.data.attachedFile}
+                                        {needsGithubUrl && (
+                                            <div style={{ marginBottom: '14px' }}>
+                                                <label className="input-label">GITHUB REPOSITORY URL</label>
+                                                <input
+                                                    type="url"
+                                                    className="login-input"
+                                                    placeholder="https://github.com/username/repository"
+                                                    value={githubProofUrl}
+                                                    onChange={(e) => setGithubProofUrl(e.target.value)}
+                                                />
+                                                <div className={`proof-hint ${githubProofUrl ? (githubUrlValid ? 'valid' : 'invalid') : ''}`}>
+                                                    {githubProofUrl
+                                                        ? (githubUrlValid ? '✅ Valid GitHub repository URL' : '⚠️ Enter a valid GitHub repository URL')
+                                                        : 'Required for this mission'}
+                                                </div>
                                             </div>
                                         )}
-                                    </div>
 
-                                    {modal.data.isChecking ? (
-                                        <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                                            <div style={{ marginBottom: '8px', fontSize: '.82rem', fontWeight: 800, color: 'var(--gray)' }}>🔍 AI Originality Scan: {modal.data.checkProgress}%</div>
-                                            <div className="progress-bar"><div className="progress-fill yellow" style={{ width: `${modal.data.checkProgress}%`, borderRadius: '10px' }}></div></div>
-                                            <p style={{ marginTop: '8px', fontSize: '.75rem', fontStyle: 'italic' }}>Detecting AI generation & duplicates...</p>
-                                        </div>
-                                    ) : modal.data.checkResult === 'pass' ? (
-                                        <div style={{ background: '#E8F5E9', borderRadius: '12px', padding: '14px', textAlign: 'center', marginBottom: '14px' }}>
-                                            <div style={{ fontSize: '1.5rem' }}>✅</div>
-                                            <div style={{ fontWeight: 800, color: '#2E7D32', fontSize: '.9rem' }}>Original Content Verified!</div>
-                                            <div style={{ fontSize: '.75rem', opacity: 0.7 }}>Secure Hash: 0x{Math.random().toString(16).slice(2, 8).toUpperCase()}</div>
-                                        </div>
-                                    ) : (
                                         <button
                                             className="btn btn-yellow"
                                             style={{ width: '100%', marginBottom: '8px' }}
-                                            onClick={() => {
-                                                if (!modal.data.attachedFile) { showNotif('⚠️ Attach evidence first!'); return; }
-                                                setModal(prev => ({ ...prev, data: { ...prev.data, isChecking: true, checkProgress: 0 } }));
-
-                                                let prog = 0;
-                                                const interval = setInterval(() => {
-                                                    prog += 4;
-                                                    setModal(prev => ({ ...prev, data: { ...prev.data, checkProgress: prog } }));
-                                                    if (prog >= 100) {
-                                                        clearInterval(interval);
-                                                        setTimeout(() => {
-                                                            setModal(prev => ({ ...prev, data: { ...prev.data, isChecking: false, checkResult: 'pass' } }));
-                                                            showNotif('🛡️ Evidence Verified: Original');
-                                                        }, 500);
-                                                    }
-                                                }, 80);
-                                            }}
+                                            onClick={submitMissionProof}
+                                            disabled={!canSubmitProof || isUploadingProof}
                                         >
-                                            🛡️ Scan & Submit Proof
+                                            {isUploadingProof ? (
+                                                <span className="proof-uploading-inline">
+                                                    <span className="proof-upload-spinner" aria-hidden="true"></span>
+                                                    Uploading proof...
+                                                </span>
+                                            ) : (
+                                                `🚀 Submit ${modal.data.pts}`
+                                            )}
                                         </button>
-                                    )}
 
-                                    {modal.data.checkResult === 'pass' && (
-                                        <button className="btn btn-yellow" style={{ width: '100%', marginBottom: '8px' }} onClick={() => completeNode(modal.data.id)}>
-                                            🎁 Claim {modal.data.pts}
-                                        </button>
-                                    )}
-                                </>
-                            )}
-                            <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
-                        </>
-                    )}
+                                        {!canSubmitProof && (
+                                            <div className="proof-hint invalid" style={{ marginBottom: '8px' }}>
+                                                {needsGithubUrl ? 'Valid GitHub URL is required to submit this mission.' : 'Attach a photo or file to submit this mission.'}
+                                            </div>
+                                        )}
+
+                                        {canSubmitProof && !isUploadingProof && (
+                                            <div className="proof-hint valid" style={{ marginBottom: '8px' }}>
+                                                ✅ Ready to submit
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
+                            </>
+                        );
+                    })()}
+
                     {modal.type === 'user' && modal.data && (
                         <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
@@ -1293,11 +1108,10 @@ function App() {
                             <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
                         </>
                     )}
-                </div>
-            </div>
+            </Modal>
 
             {/* NOTIFICATION */}
-            <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
+            <NotifToast show={notif.show} message={notif.msg} />
             {pointsDeltaToast && <div className="points-rise-toast">+{pointsDeltaToast.delta} pts</div>}
 
             <style>{`
@@ -1336,6 +1150,28 @@ function App() {
                     100% {
                         opacity: 0;
                         transform: translateY(-54px) translateX(8px) scale(1);
+                    }
+                }
+
+                .suspense-spinner-wrap {
+                    min-height: 200px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .suspense-spinner {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 50%;
+                    border: 3px solid rgba(0, 0, 0, .15);
+                    border-top-color: rgba(0, 0, 0, .72);
+                    animation: suspenseSpin .8s linear infinite;
+                }
+
+                @keyframes suspenseSpin {
+                    to {
+                        transform: rotate(360deg);
                     }
                 }
             `}</style>
