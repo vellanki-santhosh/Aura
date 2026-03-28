@@ -27,6 +27,14 @@ const PATH_ANIMATIONS = [
     { label: 'Run Cycle', src: `${import.meta.env.BASE_URL}animations/run-cycle.lottie` },
     { label: 'Skull Boy', src: `${import.meta.env.BASE_URL}animations/skull-boy.lottie` },
 ];
+const SPIN_REWARDS = [10, 15, 20, 30, 40, 50];
+const SURPRISE_MISSIONS = [
+    { title: 'Help 1 junior with a doubt', reward: 12 },
+    { title: 'Post one club update', reward: 15 },
+    { title: 'Share one event in your group', reward: 10 },
+    { title: 'Upload one learning snapshot', reward: 14 },
+    { title: 'Invite one friend to Aura', reward: 18 },
+];
 
 const pickNodeAnimation = (seed: number) => {
     const index = Math.abs((seed * 9301 + 49297) % 233280) % PATH_ANIMATIONS.length;
@@ -57,11 +65,26 @@ function App() {
     const [rejectedSet, setRejectedSet] = useState(new Set<string>());
     const [registeredSet, setRegisteredSet] = useState(new Set<number>());
     const [declinedSet, setDeclinedSet] = useState(new Set<number>());
+    const [spinUsed, setSpinUsed] = useState(false);
+    const [isSpinning, setIsSpinning] = useState(false);
+    const [spinReward, setSpinReward] = useState<number | null>(null);
+    const [tickerIndex, setTickerIndex] = useState(0);
+    const [surpriseMission, setSurpriseMission] = useState(() => {
+        const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
+        return { ...picked, done: false };
+    });
 
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
         setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
     };
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTickerIndex((prev) => (prev + 1) % 4);
+        }, 2600);
+        return () => clearInterval(timer);
+    }, []);
 
     const closeModal = () => setModal({ ...modal, isOpen: false });
 
@@ -214,6 +237,36 @@ function App() {
         }
     };
 
+    const playLuckySpin = () => {
+        if (spinUsed || isSpinning) {
+            showNotif('🎰 Lucky spin already used today.');
+            return;
+        }
+
+        setIsSpinning(true);
+        setTimeout(() => {
+            const reward = SPIN_REWARDS[Math.floor(Math.random() * SPIN_REWARDS.length)];
+            setPoints((p) => p + reward);
+            setSpinReward(reward);
+            setSpinUsed(true);
+            setIsSpinning(false);
+            showNotif(`🎉 Lucky Spin reward: +${reward} pts`);
+        }, 1500);
+    };
+
+    const completeSurpriseMission = () => {
+        if (surpriseMission.done) return;
+        setPoints((p) => p + surpriseMission.reward);
+        setSurpriseMission((prev) => ({ ...prev, done: true }));
+        showNotif(`✨ Surprise mission done! +${surpriseMission.reward} pts`);
+    };
+
+    const rerollSurpriseMission = () => {
+        const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
+        setSurpriseMission({ ...picked, done: false });
+        showNotif('🔄 Surprise mission refreshed.');
+    };
+
     // --- LOGIN SCREEN RENDER ---
     if (!isLoggedIn) {
         return (
@@ -291,6 +344,39 @@ function App() {
                     <div className="quest-title">⚡ DAILY QUEST: Ask 1 question in a seminar!</div>
                     <div className="quest-sub">Reward: +15 pts &nbsp;|&nbsp; Progress: 0/1</div>
                     <div className="quest-progress"><div className="quest-progress-fill" style={{ width: '0%', transition: 'width 1s ease' }}></div></div>
+                </div>
+
+                <div className="wow-strip">
+                    <div className="wow-card spin-card">
+                        <div className="wow-title">🎰 Lucky Spin</div>
+                        <div className={`spin-wheel ${isSpinning ? 'spinning' : ''}`}>🎡</div>
+                        <div className="wow-sub">Daily random reward for active members</div>
+                        <button className="btn btn-yellow" onClick={playLuckySpin} disabled={spinUsed || isSpinning}>
+                            {isSpinning ? 'Spinning...' : spinUsed ? 'Used Today' : 'Spin Now'}
+                        </button>
+                        {spinReward && <div className="wow-reward">+{spinReward} pts unlocked</div>}
+                    </div>
+
+                    <div className="wow-card mission-card">
+                        <div className="wow-title">🧩 Surprise Mission</div>
+                        <div className="wow-mission-text">{surpriseMission.title}</div>
+                        <div className="wow-sub">Reward: +{surpriseMission.reward} pts</div>
+                        <div className="wow-actions">
+                            <button className="btn btn-green" onClick={completeSurpriseMission} disabled={surpriseMission.done}>
+                                {surpriseMission.done ? 'Completed' : 'Claim'}
+                            </button>
+                            <button className="btn btn-outline" onClick={rerollSurpriseMission}>Reroll</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="achievement-ticker">
+                    {[
+                        `🏆 Rank momentum: +${Math.max(1, Math.floor(points / 120))} positions this week`,
+                        `🔥 Streak power: ${streak} day consistency`,
+                        `🗺️ Path progress: ${pathNodes.filter(n => n.state === 'done').length}/${pathNodes.length} nodes done`,
+                        `⚡ Community pulse: ${users.filter(u => u.available).length} peers available now`,
+                    ][tickerIndex]}
                 </div>
 
                 <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>

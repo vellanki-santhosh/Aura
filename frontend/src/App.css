@@ -339,6 +339,101 @@ body {
   transition: width 1s ease;
 }
 
+.wow-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 10px;
+}
+
+.wow-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wow-title {
+  font-weight: 900;
+  font-size: .82rem;
+  color: var(--dark2);
+}
+
+.wow-sub {
+  font-size: .7rem;
+  color: #666;
+  min-height: 28px;
+}
+
+.spin-card .btn,
+.mission-card .btn {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: .75rem;
+}
+
+.spin-wheel {
+  font-size: 1.8rem;
+  line-height: 1;
+  align-self: center;
+}
+
+.spin-wheel.spinning {
+  animation: spinPulse .6s linear infinite;
+}
+
+.wow-reward {
+  text-align: center;
+  font-size: .72rem;
+  font-weight: 800;
+  color: var(--green-dark);
+}
+
+.wow-mission-text {
+  font-size: .78rem;
+  font-weight: 800;
+  color: var(--dark);
+  min-height: 34px;
+}
+
+.wow-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.achievement-ticker {
+  margin: 0 16px 8px;
+  background: linear-gradient(135deg, #fff7d1, #fff2a8);
+  border: 1px solid #f1df8b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: .78rem;
+  font-weight: 800;
+  color: #4f4200;
+  animation: tickerPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes spinPulse {
+  from { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.12); }
+  to { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes tickerPulse {
+  0%, 100% { box-shadow: 0 2px 10px rgba(249, 168, 37, .15); }
+  50% { box-shadow: 0 4px 18px rgba(249, 168, 37, .28); }
+}
+
+@media (max-width: 420px) {
+  .wow-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ─── PATH SCREEN ─── */
 .path-nodes {
   display: flex;
