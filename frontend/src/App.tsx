@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import {
     pathNodes as initialPathNodes,
@@ -13,6 +13,8 @@ import {
 
 type Role = 'student' | 'admin';
 type Screen = 'path' | 'leaderboard' | 'users' | 'profile' | 'admin';
+type ActivityItem = { time: string; text: string; pts: string };
+type RejectedSubmission = { reason?: string; desc: string };
 type ConfettiPiece = {
     id: number;
     left: number;
@@ -22,6 +24,17 @@ type ConfettiPiece = {
     hue: number;
     duration: number;
     size: number;
+};
+
+type PersistedState = {
+    isLoggedIn: boolean;
+    user: { name: string; rollNo: string; domain: string; role: Role } | null;
+    points: number;
+    pathNodes: typeof initialPathNodes;
+    approvedIds: string[];
+    rejectedIds: string[];
+    dailyQuestDone: boolean;
+    activityFeed: ActivityItem[];
 };
 
 const avatarColor = (name: string) => {
@@ -44,6 +57,8 @@ const createConfettiPieces = (count = 30): ConfettiPiece[] =>
         duration: Math.floor(Math.random() * 900 + 1200),
         size: Math.floor(Math.random() * 9 + 7),
     }));
+
+const AURA_STORAGE_KEY = 'aura-state-v2';
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -74,6 +89,8 @@ function App() {
     const [adminTab, setAdminTab] = useState('queue');
     const [xpBurst, setXpBurst] = useState<{ id: number; amount: number } | null>(null);
     const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
+    const [dailyQuestDone, setDailyQuestDone] = useState(false);
+    const [activityFeed, setActivityFeed] = useState<ActivityItem[]>(activityData);
 
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
@@ -81,6 +98,60 @@ function App() {
     };
 
     const closeModal = () => setModal((prev) => ({ ...prev, isOpen: false }));
+
+    useEffect(() => {
+        try {
+            const rawState = localStorage.getItem(AURA_STORAGE_KEY);
+            if (!rawState) return;
+
+            const saved = JSON.parse(rawState) as PersistedState;
+            setIsLoggedIn(saved.isLoggedIn ?? false);
+            setUser(saved.user ?? null);
+            setPoints(saved.points ?? 470);
+            setPathNodes(saved.pathNodes ?? initialPathNodes);
+            setApprovedSet(new Set(saved.approvedIds ?? []));
+            setRejectedSet(new Set(saved.rejectedIds ?? []));
+            setDailyQuestDone(saved.dailyQuestDone ?? false);
+            setActivityFeed(saved.activityFeed?.length ? saved.activityFeed : activityData);
+        } catch {
+            // ignore malformed local data and continue with defaults
+        }
+    }, []);
+
+    useEffect(() => {
+        const stateToSave: PersistedState = {
+            isLoggedIn,
+            user,
+            points,
+            pathNodes,
+            approvedIds: [...approvedSet],
+            rejectedIds: [...rejectedSet],
+            dailyQuestDone,
+            activityFeed,
+        };
+
+        localStorage.setItem(AURA_STORAGE_KEY, JSON.stringify(stateToSave));
+    }, [isLoggedIn, user, points, pathNodes, approvedSet, rejectedSet, dailyQuestDone, activityFeed]);
+
+    const rewardXP = (amount: number, message: string, activityText: string) => {
+        const burstId = Date.now();
+        setPoints((p) => p + amount);
+        setXpBurst({ id: burstId, amount });
+        setConfettiPieces(createConfettiPieces());
+        setActivityFeed((prev) => [
+            { time: 'Just now', text: activityText, pts: `+${amount} pts` },
+            ...prev,
+        ]);
+        showNotif(message);
+
+        setTimeout(() => {
+            setXpBurst((prev) => (prev?.id === burstId ? null : prev));
+        }, 1250);
+
+        setTimeout(() => {
+            setConfettiPieces([]);
+        }, 1900);
+    };
 
     const filteredUsers = useMemo(
         () =>
@@ -126,8 +197,7 @@ function App() {
 
     const approveSubmission = (id: string, pts: number) => {
         setApprovedSet((prev) => new Set(prev).add(id));
-        setPoints((p) => p + pts);
-        showNotif(`Approved successfully. +${pts} points`);
+        rewardXP(pts, `Approved successfully. +${pts} points`, 'Admin approved a club contribution');
     };
 
     const rejectSubmission = (id: string) => {
@@ -139,7 +209,6 @@ function App() {
         const node = pathNodes.find((n) => n.id === id);
         if (!node || node.state !== 'active') return;
         const earned = parsePts(node.pts);
-        const burstId = Date.now();
 
         const updatedNodes = pathNodes.map((n) => {
             if (n.id === id) return { ...n, state: 'done' as const };
@@ -148,19 +217,14 @@ function App() {
         });
 
         setPathNodes(updatedNodes);
-        setPoints((p) => p + earned);
-        setXpBurst({ id: burstId, amount: earned });
-        setConfettiPieces(createConfettiPieces());
         closeModal();
-        showNotif(`${node.label} completed. ${node.pts} earned.`);
+        rewardXP(earned, `${node.label} completed. ${node.pts} earned.`, node.label);
+    };
 
-        setTimeout(() => {
-            setXpBurst((prev) => (prev?.id === burstId ? null : prev));
-        }, 1250);
-
-        setTimeout(() => {
-            setConfettiPieces([]);
-        }, 1900);
+    const completeDailyQuest = () => {
+        if (dailyQuestDone) return;
+        setDailyQuestDone(true);
+        rewardXP(15, 'Daily quest completed. +15 XP', 'Daily quest completed');
     };
 
     if (!isLoggedIn) {
@@ -173,8 +237,8 @@ function App() {
                     <div className="brand-pill">AURA</div>
                     <h1>Learn, Lead, Level Up</h1>
                     <p>
-                        Aura turns club life into a fun student quest where every contribution earns XP, streaks, and
-                        squad recognition.
+                        Aura turns campus life into a fun student quest where every contribution earns XP, streaks,
+                        and squad recognition.
                     </p>
 
                     <div className="role-toggle">
@@ -234,7 +298,7 @@ function App() {
         <div className="aura-shell">
             <header className="topbar">
                 <div>
-                    <div className="topbar-brand">🏠 ALIET Clubs</div>
+                    <div className="topbar-brand">🏠 Aura</div>
                     <div className="topbar-sub">{user?.role === 'admin' ? 'Admin Mode' : levelTitle}</div>
                 </div>
                 <div className="topbar-stats">
@@ -267,9 +331,14 @@ function App() {
                 {currentScreen === 'path' && (
                     <section className="screen show">
                         <article className="daily-mission">
-                            <h3>Daily Quest</h3>
+                            <div className="daily-mission-head">
+                                <h3>Daily Quest</h3>
+                                <button className="mini-cta" onClick={completeDailyQuest} disabled={dailyQuestDone}>
+                                    {dailyQuestDone ? 'Completed' : 'Mark Done'}
+                                </button>
+                            </div>
                             <p>Ask one smart seminar question, then drop a 2-line reflection.</p>
-                            <span>Reward +15 XP</span>
+                            <span>{dailyQuestDone ? 'Reward claimed: +15 XP' : 'Reward +15 XP'}</span>
                         </article>
 
                         <h3 className="section-title">My Learning Trail</h3>
@@ -437,7 +506,7 @@ function App() {
 
                         <h3 className="section-title">RECENT ACTIVITY</h3>
                         <div className="activity-list">
-                            {activityData.slice(0, 3).map((a, i) => (
+                            {activityFeed.slice(0, 5).map((a, i) => (
                                 <article className="activity-row" key={i}>
                                     <div className="act-icon">◎</div>
                                     <div>
@@ -506,7 +575,7 @@ function App() {
                                     <article className="submission" key={i}>
                                         <h4>{s.name}</h4>
                                         <p>{s.task}</p>
-                                        <small>{(s as any).reason || s.desc}</small>
+                                        <small>{(s as RejectedSubmission).reason || s.desc}</small>
                                         <div className="bad-tag">Rejected</div>
                                     </article>
                                 ))}
