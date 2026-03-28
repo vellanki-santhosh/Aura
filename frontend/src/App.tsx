@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import './App.css';
 import {
     pathNodes as initialPathNodes,
@@ -8,451 +8,512 @@ import {
     activityData,
     adminQueue as initialAdminQueue,
     adminValidated as initialAdminValidated,
-    adminRejected as initialAdminRejected
+    adminRejected as initialAdminRejected,
 } from './data/mockData';
 
-// --- HELPERS ---
+type Role = 'student' | 'admin';
+type Screen = 'path' | 'leaderboard' | 'users' | 'profile' | 'admin';
+
 const avatarColor = (name: string) => {
-    const colors = ['#FFD600', '#A5D6A7', '#90CAF9', '#FFCC80', '#CE93D8', '#F48FB1', '#80CBC4'];
+    const colors = ['#f59e0b', '#22c55e', '#06b6d4', '#f97316', '#3b82f6', '#ef4444', '#14b8a6'];
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % colors.length;
     return colors[Math.abs(hash)];
 };
 
+const parsePts = (value: string) => Number(value.replace(/\D/g, '')) || 0;
+
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [user, setUser] = useState<{ name: string; rollNo: string; domain: string; role: 'student' | 'admin' } | null>(null);
-    const [loginRole, setLoginRole] = useState<'student' | 'admin'>('student');
+    const [user, setUser] = useState<{ name: string; rollNo: string; domain: string; role: Role } | null>(null);
+    const [loginRole, setLoginRole] = useState<Role>('student');
 
-    const [currentScreen, setCurrentScreen] = useState('path');
+    const [currentScreen, setCurrentScreen] = useState<Screen>('path');
     const [points, setPoints] = useState(470);
     const [streak] = useState(14);
-    const [notif, setNotif] = useState<{ msg: string; show: boolean }>({ msg: '', show: false });
-    const [modal, setModal] = useState<{ isOpen: boolean; type: string; data: any }>({ isOpen: false, type: '', data: null });
+    const [notif, setNotif] = useState({ msg: '', show: false });
+    const [modal, setModal] = useState<{ isOpen: boolean; type: 'node' | 'user' | ''; data: any | null }>({
+        isOpen: false,
+        type: '',
+        data: null,
+    });
 
-    // Data States
     const [pathNodes, setPathNodes] = useState(initialPathNodes);
-    const [users, setUsers] = useState(initialUsersData);
-    const [adminQueue, setAdminQueue] = useState(initialAdminQueue);
-    const [adminValidated, setAdminValidated] = useState(initialAdminValidated);
-    const [adminRejected, setAdminRejected] = useState(initialAdminRejected);
+    const [users] = useState(initialUsersData);
+    const [adminQueue] = useState(initialAdminQueue);
+    const [adminValidated] = useState(initialAdminValidated);
+    const [adminRejected] = useState(initialAdminRejected);
     const [approvedSet, setApprovedSet] = useState(new Set<string>());
     const [rejectedSet, setRejectedSet] = useState(new Set<string>());
 
+    const [lbDomain, setLbDomain] = useState('Academic');
+    const [userSearch, setUserSearch] = useState('');
+    const [userFilterDomain, setUserFilterDomain] = useState('All');
+    const [adminTab, setAdminTab] = useState('queue');
+
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
-        setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
+        setTimeout(() => setNotif((prev) => ({ ...prev, show: false })), 2600);
     };
 
-    const closeModal = () => setModal({ ...modal, isOpen: false });
+    const closeModal = () => setModal((prev) => ({ ...prev, isOpen: false }));
 
-    // Login handler
+    const filteredUsers = useMemo(
+        () =>
+            users.filter(
+                (u) =>
+                    (userFilterDomain === 'All' || u.domain === userFilterDomain) &&
+                    (u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        u.role.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        u.badges.some((b) => b.toLowerCase().includes(userSearch.toLowerCase()))),
+            ),
+        [users, userFilterDomain, userSearch],
+    );
+
+    const pendingQueue = adminQueue.filter((s) => !approvedSet.has(s.id) && !rejectedSet.has(s.id));
+    const completedNodes = pathNodes.filter((n) => n.state === 'done').length;
+    const progressPercent = (completedNodes / pathNodes.length) * 100;
+    const levelTitle = points >= 800 ? 'Campus Legend' : points >= 500 ? 'Club Leader' : 'Rising Contributor';
+
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
-        const name = formData.get('name') as string;
-        const rollNo = formData.get('rollNo') as string;
-        const domain = formData.get('domain') as string;
+        const name = (formData.get('name') as string) || '';
+        const rollNo = (formData.get('rollNo') as string) || '';
+        const domain = loginRole === 'admin' ? 'Operations' : ((formData.get('domain') as string) || '');
 
-        if (!name || !rollNo || (loginRole === 'student' && !domain)) {
-            showNotif('⚠️ Please fill all fields');
+        if (!name || !rollNo || !domain) {
+            showNotif('Please fill all fields to continue.');
             return;
         }
 
         setUser({ name, rollNo, domain, role: loginRole });
         setIsLoggedIn(true);
-        showNotif(`👋 Welcome, ${name}!`);
         setCurrentScreen('path');
+        showNotif(`Welcome to Aura, ${name}.`);
     };
 
     const handleLogout = () => {
         setIsLoggedIn(false);
         setUser(null);
-        showNotif('👋 Safely logged out');
+        showNotif('You have logged out safely.');
     };
 
-    // Leaderboard Domain logic
-    const [lbDomain, setLbDomain] = useState('Academic');
-
-    // User Filter logic
-    const [userSearch, setUserSearch] = useState('');
-    const [userFilterDomain, setUserFilterDomain] = useState('All');
-
-    const filteredUsers = users.filter(u =>
-        (userFilterDomain === 'All' || u.domain === userFilterDomain) &&
-        (u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-            u.role.toLowerCase().includes(userSearch.toLowerCase()) ||
-            u.badges.some(b => b.toLowerCase().includes(userSearch.toLowerCase())))
-    );
-
-    // Admin Queue Filter
-    const [adminTab, setAdminTab] = useState('queue');
-    const pendingQueue = adminQueue.filter(s => !approvedSet.has(s.id) && !rejectedSet.has(s.id));
-
     const approveSubmission = (id: string, pts: number) => {
-        setApprovedSet(new Set(approvedSet.add(id)));
-        setPoints(p => p + pts);
-        showNotif(`✅ Approved! +${pts} pts awarded`);
+        setApprovedSet((prev) => new Set(prev).add(id));
+        setPoints((p) => p + pts);
+        showNotif(`Approved successfully. +${pts} points`);
     };
 
     const rejectSubmission = (id: string) => {
-        setRejectedSet(new Set(rejectedSet.add(id)));
-        showNotif('❌ Submission rejected');
+        setRejectedSet((prev) => new Set(prev).add(id));
+        showNotif('Submission rejected.');
     };
 
     const completeNode = (id: number) => {
-        const node = pathNodes.find(n => n.id === id);
-        if (node && node.state === 'active') {
-            const updatedNodes = pathNodes.map(n => {
-                if (n.id === id) return { ...n, state: 'done' as const };
-                if (n.state === 'locked' && n.id === id + 1) return { ...n, state: 'active' as const };
-                return n;
-            });
-            setPathNodes(updatedNodes);
-            setPoints(p => p + parseInt(node.pts));
-            closeModal();
-            showNotif(`🎉 ${node.label} completed! ${node.pts}`);
-        }
+        const node = pathNodes.find((n) => n.id === id);
+        if (!node || node.state !== 'active') return;
+
+        const updatedNodes = pathNodes.map((n) => {
+            if (n.id === id) return { ...n, state: 'done' as const };
+            if (n.state === 'locked' && n.id === id + 1) return { ...n, state: 'active' as const };
+            return n;
+        });
+
+        setPathNodes(updatedNodes);
+        setPoints((p) => p + parsePts(node.pts));
+        closeModal();
+        showNotif(`${node.label} completed. ${node.pts} earned.`);
     };
 
-    // --- LOGIN SCREEN RENDER ---
     if (!isLoggedIn) {
         return (
-            <div className="app-shell" style={{ justifyContent: 'center' }}>
-                <div className="login-screen">
-                    <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                        <div style={{ fontSize: '3.5rem', marginBottom: '10px' }}>🏠</div>
-                        <div className="login-title">ALIET Clubs</div>
-                        <div className="login-subtitle">Powering Student Contributions</div>
+            <div className="auth-shell">
+                <div className="glow-circle glow-one"></div>
+                <div className="glow-circle glow-two"></div>
+
+                <div className="auth-card">
+                    <div className="brand-pill">AURA</div>
+                    <h1>Campus Contributions, Reimagined</h1>
+                    <p>
+                        Track impact, reward participation, and make every club activity visible through one gamified
+                        command center.
+                    </p>
+
+                    <div className="role-toggle">
+                        <button
+                            type="button"
+                            className={loginRole === 'student' ? 'active' : ''}
+                            onClick={() => setLoginRole('student')}
+                        >
+                            Student
+                        </button>
+                        <button
+                            type="button"
+                            className={loginRole === 'admin' ? 'active' : ''}
+                            onClick={() => setLoginRole('admin')}
+                        >
+                            Admin
+                        </button>
                     </div>
 
-                    <div className="login-card">
-                        <div className="login-toggle">
-                            <button
-                                className={`toggle-btn ${loginRole === 'student' ? 'active' : ''}`}
-                                onClick={() => setLoginRole('student')}
-                            >Student</button>
-                            <button
-                                className={`toggle-btn ${loginRole === 'admin' ? 'active' : ''}`}
-                                onClick={() => setLoginRole('admin')}
-                            >Admin</button>
-                        </div>
+                    <form className="auth-form" onSubmit={handleLogin}>
+                        <label>
+                            Full Name
+                            <input name="name" placeholder="ex: Priya S." required />
+                        </label>
+                        <label>
+                            Roll Number
+                            <input name="rollNo" placeholder="ex: 21X41A05XX" required />
+                        </label>
 
-                        <form onSubmit={handleLogin}>
-                            <div className="input-group">
-                                <label className="input-label">FULL NAME</label>
-                                <input type="text" name="name" className="login-input" placeholder="e.g. John Doe" required />
-                            </div>
-                            <div className="input-group">
-                                <label className="input-label">ROLL NO</label>
-                                <input type="text" name="rollNo" className="login-input" placeholder="e.g. 21X41A05XX" required />
-                            </div>
+                        {loginRole === 'student' && (
+                            <label>
+                                Primary Domain
+                                <select name="domain" required defaultValue="">
+                                    <option value="" disabled>
+                                        Select domain
+                                    </option>
+                                    <option value="Academic">Academic</option>
+                                    <option value="Tech">Tech</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Events">Events</option>
+                                </select>
+                            </label>
+                        )}
 
-                            {loginRole === 'student' && (
-                                <div className="input-group">
-                                    <label className="input-label">PRIMARY DOMAIN</label>
-                                    <select name="domain" className="login-select" required>
-                                        <option value="">Select Domain</option>
-                                        <option value="Academic">Academic</option>
-                                        <option value="Tech">Tech</option>
-                                        <option value="Media">Media</option>
-                                        <option value="Events">Events</option>
-                                    </select>
-                                </div>
-                            )}
-
-                            <button type="submit" className="btn btn-yellow" style={{ width: '100%', marginTop: '12px', padding: '14px' }}>
-                                Login to Dashboard
-                            </button>
-                        </form>
-                    </div>
+                        <button className="cta" type="submit">
+                            Enter Aura Dashboard
+                        </button>
+                    </form>
                 </div>
+
                 <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
             </div>
         );
     }
 
-    // --- MAIN APP RENDER ---
     return (
-        <div className="app-shell">
-            {/* TOP BAR */}
-            <div className="topbar">
-                <div className="topbar-logo"><span className="house">🏠</span> ALIET Clubs</div>
+        <div className="aura-shell">
+            <header className="topbar">
+                <div>
+                    <div className="topbar-brand">Aura</div>
+                    <div className="topbar-sub">{levelTitle}</div>
+                </div>
                 <div className="topbar-stats">
-                    <div className="stat-pill"><span className="icon">🔥</span> {streak}</div>
-                    <div className="stat-pill"><span className="icon">🪙</span> {points} pts</div>
+                    <div className="stat-chip">Streak {streak}</div>
+                    <div className="stat-chip accent">{points} pts</div>
                 </div>
-            </div>
+            </header>
 
-            {/* PATH SCREEN */}
-            <div className={`screen ${currentScreen === 'path' ? 'active' : ''} fade-in`}>
-                <div className="quest-bar">
-                    <div className="quest-title">⚡ DAILY QUEST: Ask 1 question in a seminar!</div>
-                    <div className="quest-sub">Reward: +15 pts &nbsp;|&nbsp; Progress: 0/1</div>
-                    <div className="quest-progress"><div className="quest-progress-fill" style={{ width: '0%', transition: 'width 1s ease' }}></div></div>
+            <section className="hero-strip">
+                <div>
+                    <h2>Welcome, {user?.name}</h2>
+                    <p>
+                        {user?.role === 'admin'
+                            ? 'Manage validation queue and boost contributor momentum.'
+                            : 'Complete missions, climb rankings, and unlock badges.'}
+                    </p>
                 </div>
-                <div className="section-title">🗺️ Your Activity Path</div>
-                <div className="path-nodes">
-                    {pathNodes.map((node, i) => (
-                        <div className="path-node-wrap" key={node.id}>
-                            {i > 0 && (
-                                <div className={`path-connector ${pathNodes[i - 1].state === 'done' ? 'done' : pathNodes[i - 1].state === 'active' ? 'active' : ''}`}></div>
-                            )}
-                            <div
-                                className={`path-node ${node.state}`}
-                                onClick={() => (node.state === 'active' || node.state === 'done') ? setModal({ isOpen: true, type: 'node', data: node }) : showNotif('🔒 Complete previous activities first!')}
-                            >
-                                <span className="node-icon">{node.icon}</span>
-                                {node.state === 'done' && <div className="done-check">✓</div>}
-                                {node.state === 'locked' && <div className="lock-icon">🔒</div>}
-                            </div>
-                            <div className="path-node-label">{node.label}</div>
-                            <div className="path-node-sub">{node.sub}</div>
-                            <div className="path-node-pts">{node.pts}</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* LEADERBOARD SCREEN */}
-            <div className={`screen ${currentScreen === 'leaderboard' ? 'active' : ''} fade-in`}>
-                <div className="lb-header">
-                    <div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>🏆 Leaderboard</div>
-                </div>
-                <div className="lb-domain-select">
-                    {['Academic', 'Tech', 'Media', 'Events'].map(d => (
-                        <div key={d} className={`domain-chip ${lbDomain === d ? 'active' : ''}`} onClick={() => setLbDomain(d)}>{d}</div>
-                    ))}
-                </div>
-                <div id="lb-list">
-                    {lbData[lbDomain]?.map((item, i) => (
-                        <div className={`lb-row ${item.you ? 'you' : ''}`} key={i}>
-                            <div className={`rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n'}`}>{i + 1}</div>
-                            <div style={{ position: 'relative' }}>
-                                <div className="avatar sm" style={{ background: avatarColor(item.name) }}>{item.name[0]}</div>
-                                {item.you && <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: 'var(--yellow)', color: '#000', borderRadius: '3px', fontSize: '.5rem', fontWeight: 800, padding: '0 3px' }}>YOU</div>}
-                            </div>
-                            <div className="lb-name">{item.name} {item.you && <span style={{ fontSize: '.7rem', color: '#999' }}>(you)</span>}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div className="lb-pts">🪙 {item.pts}</div>
-                                {item.promo && <div className="promo-tag">▲ Promo</div>}
-                                {item.demo && <div className="demo-tag">▼ Demo</div>}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* USERS SCREEN */}
-            <div className={`screen ${currentScreen === 'users' ? 'active' : ''} fade-in`}>
-                <div className="section-title">👥 Contributors Directory</div>
-                <div className="search-bar">
-                    <span>🔍</span>
-                    <input type="text" placeholder="Search by Name, Domain, or Badge..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
-                </div>
-                <div style={{ padding: '4px 16px 8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {['All', 'Tech', 'Academic', 'Engagement'].map(d => (
-                        <div key={d} className={`domain-chip ${userFilterDomain === d ? 'active' : ''}`} onClick={() => setUserFilterDomain(d)}>{d}</div>
-                    ))}
-                </div>
-                <div id="users-list">
-                    {filteredUsers.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px', color: '#999', fontSize: '.9rem' }}>No contributors found 😕</div>
-                    ) : (
-                        filteredUsers.map((u, i) => (
-                            <div className="user-row" key={i} onClick={() => setModal({ isOpen: true, type: 'user', data: u })}>
-                                <div className="avatar" style={{ background: avatarColor(u.name) }}>{u.initials}</div>
-                                <div className="user-info">
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <div className="user-name">{u.name}</div>
-                                        <div className="pts-chip">🪙 {u.pts}</div>
-                                    </div>
-                                    <div className="user-role">{u.role}</div>
-                                    <div className="user-badges">{u.badges.map((b, bi) => <span className="badge-pill badge-green" key={bi}>{b}</span>)}</div>
-                                    <div className={`avail-tag ${u.available ? 'avail-yes' : 'avail-no'}`}>
-                                        {u.available ? '✅ Available for Peer Review' : '⛔ Not Available'}
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* PROFILE SCREEN */}
-            <div className={`screen ${currentScreen === 'profile' ? 'active' : ''} fade-in`}>
-                <div className="profile-hero">
-                    <div className="avatar lg" style={{ margin: '0 auto', background: 'rgba(0,0,0,.15)', color: 'var(--dark)' }}>{user?.name[0] || 'U'}</div>
-                    <div className="profile-name">{user?.name}</div>
-                    <div className="profile-title">{user?.rollNo} • {user?.domain} {user?.role === 'admin' ? '(Admin)' : ''}</div>
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '12px' }}>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>{points}</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Points</div></div>
-                        <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>3</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Badges</div></div>
-                        <div style={{ width: '1px', background: 'rgba(0,0,0,.15)' }}></div>
-                        <div style={{ textAlign: 'center' }}><div style={{ fontFamily: "'Fredoka One'", fontSize: '1.3rem' }}>{streak}</div><div style={{ fontSize: '.72rem', opacity: .7 }}>Streak</div></div>
+                <div className="hero-progress">
+                    <div className="hero-progress-head">
+                        <span>Path Progress</span>
+                        <strong>{Math.round(progressPercent)}%</strong>
+                    </div>
+                    <div className="bar">
+                        <div style={{ width: `${progressPercent}%` }}></div>
                     </div>
                 </div>
-                <div className="progress-block">
-                    <div className="progress-label"><span>Overall Progress → Level 2: Leader</span><span>{points}/1000 pts</span></div>
-                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${(points / 1000) * 100}%` }}></div></div>
-                    <div className="progress-label"><span>Current Domain: {user?.domain}</span><span>250/500 pts</span></div>
-                    <div className="progress-bar"><div className="progress-fill yellow" style={{ width: '50%' }}></div></div>
-                </div>
-                <div className="section-title">🎖️ Badges</div>
-                <div className="badges-grid">
-                    {badgesData.map((b, i) => (
-                        <div className={`badge-item ${b.earned ? '' : 'locked-badge'}`} key={i} onClick={() => b.earned && showNotif('🎖️ ' + b.name + ' — Earned!')}>
-                            <div className="badge-icon">{b.icon}</div>
-                            <div className="badge-name">{b.name}</div>
-                        </div>
-                    ))}
-                </div>
-                <div className="section-title">📋 Recent Validations</div>
-                <div id="activity-list">
-                    {activityData.map((a, i) => (
-                        <div className="activity-row" key={i}><div className="time">{a.time}</div><div className="act-text">✅ {a.text}</div><div className="act-pts">{a.pts}</div></div>
-                    ))}
-                </div>
-                <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <button className="btn btn-outline" style={{ width: '100%', borderColor: '#ff4444', color: '#ff4444' }} onClick={handleLogout}>🚪 Logout</button>
-                </div>
-            </div>
+            </section>
 
-            {/* APPROVALS SCREEN */}
-            <div className={`screen ${currentScreen === 'admin' ? 'active' : ''} fade-in`}>
-                <div style={{ background: 'var(--dark)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontFamily: "'Fredoka One'", fontSize: '1.1rem', color: '#fff' }}>Approvals Mode</div>
-                </div>
-                <div className="admin-tabs">
-                    <div className={`admin-tab ${adminTab === 'queue' ? 'active' : ''}`} onClick={() => setAdminTab('queue')}>Queue</div>
-                    <div className={`admin-tab ${adminTab === 'validated' ? 'active' : ''}`} onClick={() => setAdminTab('validated')}>Validated</div>
-                    <div className={`admin-tab ${adminTab === 'rejected' ? 'active' : ''}`} onClick={() => setAdminTab('rejected')}>Rejected</div>
-                </div>
+            <main className="screen-wrap">
+                {currentScreen === 'path' && (
+                    <section className="screen show">
+                        <article className="daily-mission">
+                            <h3>Daily Quest</h3>
+                            <p>Ask one meaningful question in a seminar and upload reflection.</p>
+                            <span>Reward +15 pts</span>
+                        </article>
 
-                {adminTab === 'queue' && (
-                    <div id="admin-queue">
-                        {pendingQueue.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>All caught up! 🎉</div>
-                        ) : (
-                            pendingQueue.map(s => (
-                                <div className="submission-card" key={s.id}>
-                                    <div className="sub-header">
-                                        <div className="avatar sm" style={{ background: avatarColor(s.name) }}>{s.initials}</div>
-                                        <div><div style={{ fontWeight: 800, fontSize: '.88rem' }}>{s.name}</div><div style={{ fontSize: '.72rem', color: '#999' }}>{s.time}</div></div>
-                                        <div style={{ marginLeft: 'auto' }}><span className="pts-chip">+{s.pts} pts</span></div>
-                                    </div>
-                                    <div className="sub-body">
-                                        <div className="sub-task">{s.task}</div>
-                                        <div className="sub-desc">{s.desc}</div>
-                                        {s.hasImg && <div className="sub-evidence"><div style={{ background: 'linear-gradient(135deg,#e8f5e9,#c8e6c9)', borderRadius: '8px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>📸</div></div>}
-                                    </div>
-                                    <div className="sub-actions">
-                                        <button className="btn btn-green" onClick={() => approveSubmission(s.id, s.pts)}>✓ Approve</button>
-                                        <button className="btn btn-red" onClick={() => rejectSubmission(s.id)}>✗ Reject</button>
+                        <h3 className="section-title">Activity Journey</h3>
+                        <div className="path-list">
+                            {pathNodes.map((node, index) => (
+                                <div className="path-item" key={node.id}>
+                                    {index < pathNodes.length - 1 && (
+                                        <div className={`connector ${pathNodes[index].state === 'done' ? 'done' : ''}`}></div>
+                                    )}
+                                    <button
+                                        className={`path-node ${node.state}`}
+                                        onClick={() =>
+                                            node.state === 'active' || node.state === 'done'
+                                                ? setModal({ isOpen: true, type: 'node', data: node })
+                                                : showNotif('Complete previous missions to unlock this one.')
+                                        }
+                                    >
+                                        <span>{node.icon}</span>
+                                    </button>
+                                    <div className="path-copy">
+                                        <h4>{node.label}</h4>
+                                        <p>{node.sub}</p>
+                                        <strong>{node.pts}</strong>
                                     </div>
                                 </div>
-                            ))
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {currentScreen === 'leaderboard' && (
+                    <section className="screen show">
+                        <h3 className="section-title">Leaderboard</h3>
+                        <div className="domain-pills">
+                            {['Academic', 'Tech', 'Media', 'Events'].map((d) => (
+                                <button key={d} className={lbDomain === d ? 'active' : ''} onClick={() => setLbDomain(d)}>
+                                    {d}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="rank-list">
+                            {(lbData[lbDomain] || []).map((item, i) => (
+                                <div className={`rank-row ${item.you ? 'you' : ''}`} key={i}>
+                                    <div className="rank-num">#{i + 1}</div>
+                                    <div className="avatar small" style={{ background: avatarColor(item.name) }}>
+                                        {item.name[0]}
+                                    </div>
+                                    <div className="rank-name">{item.name}</div>
+                                    <div className="rank-pts">{item.pts}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {currentScreen === 'users' && (
+                    <section className="screen show">
+                        <h3 className="section-title">Contributors Directory</h3>
+
+                        <div className="search-row">
+                            <input
+                                type="text"
+                                placeholder="Search by name, role, badge"
+                                value={userSearch}
+                                onChange={(e) => setUserSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="domain-pills">
+                            {['All', 'Tech', 'Academic', 'Engagement'].map((d) => (
+                                <button key={d} className={userFilterDomain === d ? 'active' : ''} onClick={() => setUserFilterDomain(d)}>
+                                    {d}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="user-list">
+                            {filteredUsers.length === 0 && <div className="empty">No contributors found.</div>}
+                            {filteredUsers.map((u, i) => (
+                                <article className="user-card" key={i} onClick={() => setModal({ isOpen: true, type: 'user', data: u })}>
+                                    <div className="avatar" style={{ background: avatarColor(u.name) }}>
+                                        {u.initials}
+                                    </div>
+                                    <div>
+                                        <h4>{u.name}</h4>
+                                        <p>{u.role}</p>
+                                        <small>{u.pts} pts</small>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {currentScreen === 'profile' && (
+                    <section className="screen show">
+                        <div className="profile-hero">
+                            <div className="avatar large" style={{ background: avatarColor(user?.name || 'Aura') }}>
+                                {user?.name[0] || 'A'}
+                            </div>
+                            <h3>{user?.name}</h3>
+                            <p>
+                                {user?.rollNo} · {user?.domain}
+                            </p>
+                        </div>
+
+                        <article className="card">
+                            <div className="card-head">
+                                <span>Total Progress</span>
+                                <strong>{points}/1000</strong>
+                            </div>
+                            <div className="bar">
+                                <div style={{ width: `${Math.min((points / 1000) * 100, 100)}%` }}></div>
+                            </div>
+                        </article>
+
+                        <h3 className="section-title">Badge Cabinet</h3>
+                        <div className="badge-grid">
+                            {badgesData.map((b, i) => (
+                                <button
+                                    key={i}
+                                    className={`badge-item ${b.earned ? 'earned' : 'locked'}`}
+                                    onClick={() => b.earned && showNotif(`${b.name} is already unlocked.`)}
+                                >
+                                    <span>{b.icon}</span>
+                                    <small>{b.name}</small>
+                                </button>
+                            ))}
+                        </div>
+
+                        <h3 className="section-title">Recent Activity</h3>
+                        <div className="activity-list">
+                            {activityData.map((a, i) => (
+                                <article className="activity-row" key={i}>
+                                    <span>{a.time}</span>
+                                    <p>{a.text}</p>
+                                    <strong>{a.pts}</strong>
+                                </article>
+                            ))}
+                        </div>
+
+                        <button className="danger" onClick={handleLogout}>
+                            Logout
+                        </button>
+                    </section>
+                )}
+
+                {currentScreen === 'admin' && (
+                    <section className="screen show">
+                        <h3 className="section-title">Approvals Center</h3>
+
+                        <div className="domain-pills">
+                            {['queue', 'validated', 'rejected'].map((tab) => (
+                                <button key={tab} className={adminTab === tab ? 'active' : ''} onClick={() => setAdminTab(tab)}>
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+
+                        {adminTab === 'queue' && (
+                            <div className="submission-list">
+                                {pendingQueue.length === 0 && <div className="empty">Queue is clear.</div>}
+                                {pendingQueue.map((s) => (
+                                    <article className="submission" key={s.id}>
+                                        <h4>{s.name}</h4>
+                                        <p>{s.task}</p>
+                                        <small>{s.desc}</small>
+                                        <div className="action-row">
+                                            <button onClick={() => approveSubmission(s.id, s.pts)}>Approve +{s.pts}</button>
+                                            <button className="ghost" onClick={() => rejectSubmission(s.id)}>
+                                                Reject
+                                            </button>
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
                         )}
-                    </div>
-                )}
 
-                {adminTab === 'validated' && (
-                    <div id="admin-validated">
-                        {[...adminValidated, ...adminQueue.filter(s => approvedSet.has(s.id))].map((s, i) => (
-                            <div className="submission-card" key={i}>
-                                <div className="sub-header">
-                                    <div className="avatar sm" style={{ background: avatarColor(s.name) }}>{s.initials}</div>
-                                    <div><div style={{ fontWeight: 800, fontSize: '.88rem' }}>{s.name}</div><div style={{ fontSize: '.72rem', color: '#999' }}>{s.time}</div></div>
-                                    <div style={{ marginLeft: 'auto' }}><span className="pts-chip">+{s.pts} pts</span></div>
-                                </div>
-                                <div className="sub-body"><div className="sub-task">{s.task}</div><div className="sub-desc">{s.desc}</div></div>
-                                <div className="verified-badge">✅ Verified</div>
+                        {adminTab === 'validated' && (
+                            <div className="submission-list">
+                                {[...adminValidated, ...adminQueue.filter((s) => approvedSet.has(s.id))].map((s, i) => (
+                                    <article className="submission" key={i}>
+                                        <h4>{s.name}</h4>
+                                        <p>{s.task}</p>
+                                        <small>{s.desc}</small>
+                                        <div className="ok-tag">Verified</div>
+                                    </article>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                )}
+                        )}
 
-                {adminTab === 'rejected' && (
-                    <div id="admin-rejected">
-                        {[...adminRejected, ...adminQueue.filter(s => rejectedSet.has(s.id))].map((s, i) => (
-                            <div className="submission-card" key={i}>
-                                <div className="sub-header">
-                                    <div className="avatar sm" style={{ background: avatarColor(s.name) }}>{s.initials}</div>
-                                    <div><div style={{ fontWeight: 800, fontSize: '.88rem' }}>{s.name}</div><div style={{ fontSize: '.72rem', color: '#999' }}>{s.time}</div></div>
-                                    <div style={{ marginLeft: 'auto' }}><span className="pts-chip">+{s.pts} pts</span></div>
-                                </div>
-                                <div className="sub-body"><div className="sub-task">{s.task}</div><div className="sub-desc">{(s as any).reason || s.desc}</div></div>
-                                <div style={{ padding: '0 14px 14px' }}><span className="badge-pill badge-red">✗ Rejected</span></div>
+                        {adminTab === 'rejected' && (
+                            <div className="submission-list">
+                                {[...adminRejected, ...adminQueue.filter((s) => rejectedSet.has(s.id))].map((s, i) => (
+                                    <article className="submission" key={i}>
+                                        <h4>{s.name}</h4>
+                                        <p>{s.task}</p>
+                                        <small>{(s as any).reason || s.desc}</small>
+                                        <div className="bad-tag">Rejected</div>
+                                    </article>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </section>
                 )}
-            </div>
+            </main>
 
-            {/* BOTTOM NAV */}
-            <div className="bottom-nav">
-                <button className={`nav-item ${currentScreen === 'path' ? 'active' : ''}`} onClick={() => setCurrentScreen('path')}>
-                    <span className="nav-icon">🗺️</span>Path
+            <nav className="bottom-nav">
+                <button className={currentScreen === 'path' ? 'active' : ''} onClick={() => setCurrentScreen('path')}>
+                    Path
                 </button>
-                <button className={`nav-item ${currentScreen === 'leaderboard' ? 'active' : ''}`} onClick={() => setCurrentScreen('leaderboard')}>
-                    <span className="nav-icon">🏆</span>Leaderboard
+                <button className={currentScreen === 'leaderboard' ? 'active' : ''} onClick={() => setCurrentScreen('leaderboard')}>
+                    Board
                 </button>
-                <button className={`nav-item ${currentScreen === 'users' ? 'active' : ''}`} onClick={() => setCurrentScreen('users')}>
-                    <span className="nav-icon">👥</span>Users
+                <button className={currentScreen === 'users' ? 'active' : ''} onClick={() => setCurrentScreen('users')}>
+                    People
                 </button>
                 {user?.role === 'admin' && (
-                    <button className={`nav-item ${currentScreen === 'admin' ? 'active' : ''}`} onClick={() => setCurrentScreen('admin')}>
-                        <span className="nav-icon">🔑</span>Approvals
+                    <button className={currentScreen === 'admin' ? 'active' : ''} onClick={() => setCurrentScreen('admin')}>
+                        Approvals
                     </button>
                 )}
-                <button className={`nav-item ${currentScreen === 'profile' ? 'active' : ''}`} onClick={() => setCurrentScreen('profile')}>
-                    <span className="nav-icon">👤</span>Profile
+                <button className={currentScreen === 'profile' ? 'active' : ''} onClick={() => setCurrentScreen('profile')}>
+                    Me
                 </button>
-            </div>
+            </nav>
 
-            {/* MODAL */}
             <div className={`modal-overlay ${modal.isOpen ? 'open' : ''}`} onClick={closeModal}>
-                <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-                    <div className="modal-handle"></div>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
                     {modal.type === 'node' && modal.data && (
                         <>
-                            <div className="modal-title">{modal.data.icon} {modal.data.label}</div>
-                            <p style={{ fontSize: '.85rem', color: '#666', marginBottom: '12px' }}>{modal.data.sub} · {modal.data.pts}</p>
+                            <h3>
+                                {modal.data.icon} {modal.data.label}
+                            </h3>
+                            <p>
+                                {modal.data.sub} · {modal.data.pts}
+                            </p>
                             {modal.data.state === 'done' ? (
-                                <div style={{ background: '#E8F5E9', borderRadius: '10px', padding: '12px', textAlign: 'center', fontWeight: 800, color: '#2E7D32' }}>✅ Completed!</div>
+                                <div className="ok-tag">Mission already completed.</div>
                             ) : (
-                                <>
-                                    <p style={{ fontSize: '.88rem', marginBottom: '16px' }}>Complete this activity to earn <strong>{modal.data.pts}</strong>. Submit your proof below.</p>
-                                    <button className="btn btn-yellow" style={{ width: '100%', marginBottom: '8px' }} onClick={() => completeNode(modal.data.id)}>📤 Submit Proof</button>
-                                </>
+                                <button className="cta" onClick={() => completeNode(modal.data.id)}>
+                                    Submit Proof and Complete
+                                </button>
                             )}
-                            <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
+                            <button className="ghost close" onClick={closeModal}>
+                                Close
+                            </button>
                         </>
                     )}
+
                     {modal.type === 'user' && modal.data && (
                         <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
-                                <div className="avatar lg" style={{ background: avatarColor(modal.data.name) }}>{modal.data.initials}</div>
-                                <div>
-                                    <div style={{ fontFamily: "'Fredoka One'", fontSize: '1.2rem' }}>{modal.data.name}</div>
-                                    <div style={{ fontSize: '.82rem', color: '#666' }}>{modal.data.role}</div>
-                                    <div className="pts-chip" style={{ display: 'inline-block', marginTop: '4px' }}>🪙 {modal.data.pts} pts</div>
-                                </div>
+                            <h3>{modal.data.name}</h3>
+                            <p>{modal.data.role}</p>
+                            <div className="mini-badges">
+                                {modal.data.badges.map((b: string, i: number) => (
+                                    <span key={i}>{b}</span>
+                                ))}
                             </div>
-                            <div style={{ marginBottom: '12px' }}>{modal.data.badges.map((b: string, bi: number) => <span className="badge-pill badge-green" key={bi}>{b}</span>)}</div>
                             {modal.data.available ? (
-                                <button className="btn btn-yellow" style={{ width: '100%', marginBottom: '8px' }} onClick={() => { closeModal(); showNotif('📨 Review request sent to ' + modal.data.name + '!'); }}>🤝 Request Peer Review</button>
+                                <button
+                                    className="cta"
+                                    onClick={() => {
+                                        closeModal();
+                                        showNotif(`Peer review requested from ${modal.data.name}.`);
+                                    }}
+                                >
+                                    Request Peer Review
+                                </button>
                             ) : (
-                                <div className="badge-pill badge-red" style={{ padding: '8px 14px' }}>⛔ Not available for review</div>
+                                <div className="bad-tag">Not available for peer review.</div>
                             )}
-                            <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={closeModal}>Close</button>
+                            <button className="ghost close" onClick={closeModal}>
+                                Close
+                            </button>
                         </>
                     )}
                 </div>
             </div>
 
-            {/* NOTIFICATION */}
             <div className={`notif ${notif.show ? 'show' : ''}`}>{notif.msg}</div>
         </div>
     );
