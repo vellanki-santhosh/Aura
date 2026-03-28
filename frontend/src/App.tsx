@@ -225,6 +225,11 @@ function App() {
                     <div className="quest-sub">Reward: +15 pts &nbsp;|&nbsp; Progress: 0/1</div>
                     <div className="quest-progress"><div className="quest-progress-fill" style={{ width: '0%', transition: 'width 1s ease' }}></div></div>
                 </div>
+
+                <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
+                    <img src="logo.png" alt="AURA" style={{ width: '100px', height: 'auto', opacity: 0.9 }} />
+                </div>
+
                 <div className="section-title">🧭 Your Activity Path</div>
                 <div className="path-nodes">
                     {pathNodes.map((node, i) => (
