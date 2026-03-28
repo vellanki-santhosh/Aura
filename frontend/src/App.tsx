@@ -77,6 +77,20 @@ function App() {
         showNotif('👋 Safely logged out');
     };
 
+    const shareContributionOnLinkedIn = () => {
+        if (typeof window === 'undefined') return;
+
+        const completedCount = pathNodes.filter((n) => n.state === 'done').length;
+        const domain = user?.domain || 'Campus';
+        const name = user?.name || 'AURA Contributor';
+        const appUrl = window.location.href;
+        const message = `I just shared my latest progress on AURA!\n\nName: ${name}\nDomain: ${domain}\nPoints: ${points}\nStreak: ${streak}\nCompleted Activities: ${completedCount}\n\n#Aura #StudentLeadership #CampusContributions`;
+        const shareUrl = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(message + '\n' + appUrl)}`;
+
+        window.open(shareUrl, '_blank', 'noopener,noreferrer');
+        showNotif('🔗 Opening LinkedIn share...');
+    };
+
     // Leaderboard Domain logic
     const [lbDomain, setLbDomain] = useState('Academic');
 
@@ -394,6 +408,13 @@ function App() {
                     ))}
                 </div>
                 <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button
+                        className="btn"
+                        style={{ width: '100%', background: '#0A66C2', color: '#fff' }}
+                        onClick={shareContributionOnLinkedIn}
+                    >
+                        Share Contribution on LinkedIn
+                    </button>
                     <button className="btn btn-outline" style={{ width: '100%', borderColor: '#ff4444', color: '#ff4444' }} onClick={handleLogout}>🚪 Logout</button>
                 </div>
             </div>
