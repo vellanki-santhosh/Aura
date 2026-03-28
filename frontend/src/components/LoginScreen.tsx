@@ -8,15 +8,26 @@ export interface LoginScreenProps {
 }
 
 function LoginScreen({ logoUrl, loginRole, onLoginRoleChange, onLogin }: LoginScreenProps) {
+    const isAdmin = loginRole === 'admin';
+
     return (
         <div className="app-shell" style={{ justifyContent: 'center' }}>
             <div className="login-screen">
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                     <img src={logoUrl} alt="AURA Logo" style={{ width: '240px', height: 'auto' }} />
-                    <div className="login-subtitle" style={{ marginTop: '10px' }}>Powering Student Contributions</div>
+                    <div className="login-subtitle" style={{ marginTop: '10px' }}>
+                        {isAdmin ? 'Secure Administration Access' : 'Powering Student Contributions'}
+                    </div>
                 </div>
 
-                <div className="login-card">
+                <div className={`login-card ${isAdmin ? 'admin-login-card' : ''}`}>
+                    {isAdmin && (
+                        <div className="admin-login-banner">
+                            <div className="admin-login-title">Admin Control Panel</div>
+                            <div className="admin-login-text">Use your registered credentials to manage approvals, users, and activity paths.</div>
+                        </div>
+                    )}
+
                     <div className="login-toggle">
                         <button
                             className={`toggle-btn ${loginRole === 'student' ? 'active' : ''}`}
@@ -58,7 +69,7 @@ function LoginScreen({ logoUrl, loginRole, onLoginRoleChange, onLogin }: LoginSc
                         )}
 
                         <button type="submit" className="btn btn-yellow" style={{ width: '100%', marginTop: '12px', padding: '14px' }}>
-                            Login to Dashboard
+                            {isAdmin ? 'Access Admin Dashboard' : 'Login to Dashboard'}
                         </button>
                     </form>
                 </div>

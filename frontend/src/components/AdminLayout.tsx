@@ -98,14 +98,14 @@ function AdminLayout({
             {/* Admin Header - Unified Yellow Theme */}
             <div style={{
                 background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.secondary} 100%)`,
-                color: 'white',
+                color: '#2C3E50',
                 padding: '20px 20px',
                 boxShadow: `0 4px 12px rgba(243, 156, 18, 0.3)`,
                 borderBottom: `3px solid ${COLORS.border}`
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
                     <div>
-                        <h1 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold' }}>👨‍💼 Admin Dashboard</h1>
+                        <h1 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold' }}>Admin Dashboard</h1>
                         <p style={{ margin: '8px 0 0 0', fontSize: '15px', opacity: 0.95 }}>
                             Welcome back, <strong>{userName}</strong>!
                         </p>
@@ -134,7 +134,7 @@ function AdminLayout({
                     {currentScreen === 'approvals' && (
                         <div style={{ padding: '25px' }}>
                             <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
-                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>📋 Approval Queue</h2>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>Approval Queue</h2>
                                 <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>{queueStats.pending} submissions awaiting your review</p>
                             </div>
 
@@ -282,7 +282,7 @@ function AdminLayout({
                     {currentScreen === 'paths' && (
                         <div style={{ padding: '25px' }}>
                             <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
-                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>📋 Manage Learning Path</h2>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>Manage Learning Path</h2>
                                 <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>Configure activities that students complete</p>
                             </div>
 
@@ -294,7 +294,7 @@ function AdminLayout({
                                 border: `2px solid ${COLORS.light}`,
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                             }}>
-                                <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '18px', color: COLORS.text }}>✨ Path Overview</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '18px', color: COLORS.text }}>Path Overview</div>
                                 {pathNodes.length === 0 ? (
                                     <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
                                         No activities in path yet
@@ -345,7 +345,7 @@ function AdminLayout({
                     {currentScreen === 'users' && (
                         <div style={{ padding: '25px' }}>
                             <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
-                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>👥 Student Management</h2>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>Student Management</h2>
                                 <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>View and manage all registered students</p>
                             </div>
                             <div style={{ display: 'grid', gap: '12px' }}>
@@ -414,16 +414,59 @@ function AdminLayout({
                         </div>
                     )}
                     {currentScreen === 'profile' && (
-                        <div style={{ padding: '25px' }}>
-                            <div style={{ marginBottom: '25px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '12px' }}>
-                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>👤 Admin Profile</h2>
+                        <div style={{ padding: '20px 16px 90px' }}>
+                            <div style={{ marginBottom: '20px', borderBottom: `3px solid ${COLORS.primary}`, paddingBottom: '10px' }}>
+                                <h2 style={{ margin: '0 0 8px 0', color: COLORS.text, fontSize: '22px', fontWeight: 'bold' }}>Admin Profile</h2>
                                 <p style={{ margin: 0, color: COLORS.textLight, fontSize: '14px' }}>Manage your admin account</p>
                             </div>
-                            <ProfileScreenComponent
-                                userName={userName}
-                                userInitials={userInitials}
-                                isAdmin={true}
-                            />
+
+                            <div style={{
+                                background: 'white',
+                                borderRadius: '14px',
+                                border: `2px solid ${COLORS.light}`,
+                                boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                                padding: '18px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                                    <div style={{
+                                        width: '56px',
+                                        height: '56px',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 800,
+                                        fontSize: '20px',
+                                        color: '#2C3E50',
+                                        background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.secondary} 100%)`
+                                    }}>
+                                        {userInitials}
+                                    </div>
+                                    <div>
+                                        <div style={{ color: COLORS.text, fontSize: '18px', fontWeight: 700 }}>{userName}</div>
+                                        <div style={{ color: COLORS.textLight, fontSize: '13px' }}>Administrator</div>
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr',
+                                    gap: '10px'
+                                }}>
+                                    <div style={{ background: COLORS.light, borderRadius: '10px', padding: '10px 12px' }}>
+                                        <div style={{ fontSize: '12px', color: COLORS.textLight }}>Role</div>
+                                        <div style={{ fontSize: '14px', color: COLORS.text, fontWeight: 700 }}>System Administrator</div>
+                                    </div>
+                                    <div style={{ background: COLORS.light, borderRadius: '10px', padding: '10px 12px' }}>
+                                        <div style={{ fontSize: '12px', color: COLORS.textLight }}>Access Level</div>
+                                        <div style={{ fontSize: '14px', color: COLORS.text, fontWeight: 700 }}>Full Access</div>
+                                    </div>
+                                    <div style={{ background: COLORS.light, borderRadius: '10px', padding: '10px 12px' }}>
+                                        <div style={{ fontSize: '12px', color: COLORS.textLight }}>Capabilities</div>
+                                        <div style={{ fontSize: '14px', color: COLORS.text, fontWeight: 700 }}>Approvals, Users, Path Management</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </Suspense>
@@ -444,10 +487,10 @@ function AdminLayout({
                 zIndex: 100
             }}>
                 {[
-                    { id: 'approvals', label: 'Approvals', icon: '✔️' },
-                    { id: 'paths', label: 'Paths', icon: '📋' },
-                    { id: 'users', label: 'Users', icon: '👥' },
-                    { id: 'profile', label: 'Profile', icon: '👤' },
+                    { id: 'approvals', label: 'Approvals', icon: 'AP' },
+                    { id: 'paths', label: 'Paths', icon: 'PA' },
+                    { id: 'users', label: 'Users', icon: 'US' },
+                    { id: 'profile', label: 'Profile', icon: 'ME' },
                 ].map(item => (
                     <button
                         key={item.id}
@@ -477,7 +520,7 @@ function AdminLayout({
                             }
                         }}
                     >
-                        <div style={{ fontSize: '20px', marginBottom: '2px' }}>{item.icon}</div>
+                        <div style={{ fontSize: '12px', marginBottom: '2px', fontWeight: 800, letterSpacing: '0.6px' }}>{item.icon}</div>
                         <div style={{ fontSize: '11px' }}>
                             {item.label}
                         </div>
