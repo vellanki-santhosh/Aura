@@ -21,6 +21,11 @@ const avatarColor = (name: string) => {
 };
 
 const LOGO_URL = `${import.meta.env.BASE_URL}logo.png`;
+const PATH_ANIMATIONS = [
+    { label: 'Rocket Sprint', src: `${import.meta.env.BASE_URL}animations/cat-in-a-rocket.lottie` },
+    { label: 'Run Cycle', src: `${import.meta.env.BASE_URL}animations/run-cycle.lottie` },
+    { label: 'Skull Boy', src: `${import.meta.env.BASE_URL}animations/skull-boy.lottie` },
+];
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -282,6 +287,22 @@ function App() {
 
                 <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
                     <img src={LOGO_URL} alt="AURA" style={{ width: '100px', height: 'auto', opacity: 0.9 }} />
+                </div>
+
+                <div className="path-animations">
+                    {PATH_ANIMATIONS.map((animation) => (
+                        <div className="path-animation-card" key={animation.label}>
+                            {React.createElement('dotlottie-player', {
+                                src: animation.src,
+                                background: 'transparent',
+                                speed: 1,
+                                loop: true,
+                                autoplay: true,
+                                style: { width: '100%', height: '120px' },
+                            } as any)}
+                            <div className="path-animation-label">{animation.label}</div>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="section-title">🧭 Your Activity Path</div>
