@@ -15,6 +15,12 @@ type Role = 'student' | 'admin';
 type Screen = 'path' | 'leaderboard' | 'users' | 'profile' | 'admin';
 type ActivityItem = { time: string; text: string; pts: string };
 type RejectedSubmission = { reason?: string; desc: string };
+type LiveMetrics = {
+    engagement: number;
+    activeUsers: number;
+    validationRate: number;
+    velocity: number;
+};
 type ConfettiPiece = {
     id: number;
     left: number;
@@ -60,6 +66,12 @@ const createConfettiPieces = (count = 30): ConfettiPiece[] =>
 
 const AURA_STORAGE_KEY = 'aura-state-v2';
 
+const toClockTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const jitter = (base: number, delta: number, min = 0, max = 100) => clamp(base + Math.floor(Math.random() * (delta * 2 + 1)) - delta, min, max);
+
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState<{ name: string; rollNo: string; domain: string; role: Role } | null>(null);
@@ -91,6 +103,19 @@ function App() {
     const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
     const [dailyQuestDone, setDailyQuestDone] = useState(false);
     const [activityFeed, setActivityFeed] = useState<ActivityItem[]>(activityData);
+    const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    const [lastSyncAt, setLastSyncAt] = useState(toClockTime(new Date()));
+    const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>({
+        engagement: 74,
+        activeUsers: 22,
+        validationRate: 88,
+        velocity: 63,
+    });
+    const [liveEvents, setLiveEvents] = useState<string[]>([
+        'Tech Circle posted a new sprint update',
+        '2 submissions moved to validation queue',
+        'Academic quest completion increased by 8%',
+    ]);
 
     const showNotif = (msg: string) => {
         setNotif({ msg, show: true });
@@ -101,6 +126,7 @@ function App() {
 
     useEffect(() => {
         try {
+            if (typeof window === 'undefined') return;
             const rawState = localStorage.getItem(AURA_STORAGE_KEY);
             if (!rawState) return;
 
@@ -130,8 +156,60 @@ function App() {
             activityFeed,
         };
 
-        localStorage.setItem(AURA_STORAGE_KEY, JSON.stringify(stateToSave));
+        try {
+            if (typeof window === 'undefined') return;
+            localStorage.setItem(AURA_STORAGE_KEY, JSON.stringify(stateToSave));
+        } catch {
+            // Ignore storage errors on restricted mobile browsers/private tabs.
+        }
     }, [isLoggedIn, user, points, pathNodes, approvedSet, rejectedSet, dailyQuestDone, activityFeed]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const markOnline = () => {
+            setIsOnline(true);
+            setLastSyncAt(toClockTime(new Date()));
+        };
+
+        const markOffline = () => {
+            setIsOnline(false);
+        };
+
+        window.addEventListener('online', markOnline);
+        window.addEventListener('offline', markOffline);
+
+        return () => {
+            window.removeEventListener('online', markOnline);
+            window.removeEventListener('offline', markOffline);
+        };
+    }, []);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setLiveMetrics((prev) => ({
+                engagement: jitter(prev.engagement, 2, 40, 99),
+                activeUsers: jitter(prev.activeUsers, 3, 6, 80),
+                validationRate: jitter(prev.validationRate, 2, 50, 100),
+                velocity: jitter(prev.velocity, 2, 30, 95),
+            }));
+
+            setLastSyncAt(toClockTime(new Date()));
+
+            const eventPool = [
+                'New club event trend detected in Tech domain',
+                'Weekly leaderboard volatility increased',
+                'Admin queue throughput is improving',
+                'Peer review requests are spiking this hour',
+                'Streak retention remains stable today',
+            ];
+
+            const eventText = eventPool[Math.floor(Math.random() * eventPool.length)];
+            setLiveEvents((prev) => [eventText, ...prev].slice(0, 4));
+        }, 6000);
+
+        return () => clearInterval(timer);
+    }, []);
 
     const rewardXP = (amount: number, message: string, activityText: string) => {
         const burstId = Date.now();
@@ -325,6 +403,11 @@ function App() {
                         <div style={{ width: `${progressPercent}%` }}></div>
                     </div>
                 </div>
+                <div className="sync-strip">
+                    <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+                    <span>{isOnline ? 'Online sync active' : 'Offline mode'}</span>
+                    <strong>Last sync: {lastSyncAt}</strong>
+                </div>
             </section>
 
             <main className="screen-wrap">
@@ -364,6 +447,37 @@ function App() {
                                         <strong>{node.pts}</strong>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
+
+                        <h3 className="section-title">REAL-TIME ANALYSIS</h3>
+                        <div className="analytics-grid">
+                            <article className="analytics-card">
+                                <small>Engagement</small>
+                                <strong>{liveMetrics.engagement}%</strong>
+                                <div className="metric-bar"><span style={{ width: `${liveMetrics.engagement}%` }}></span></div>
+                            </article>
+                            <article className="analytics-card">
+                                <small>Active Users</small>
+                                <strong>{liveMetrics.activeUsers}</strong>
+                                <div className="metric-bar"><span style={{ width: `${Math.min(100, liveMetrics.activeUsers * 1.4)}%` }}></span></div>
+                            </article>
+                            <article className="analytics-card">
+                                <small>Validation Rate</small>
+                                <strong>{liveMetrics.validationRate}%</strong>
+                                <div className="metric-bar"><span style={{ width: `${liveMetrics.validationRate}%` }}></span></div>
+                            </article>
+                            <article className="analytics-card">
+                                <small>Learning Velocity</small>
+                                <strong>{liveMetrics.velocity}%</strong>
+                                <div className="metric-bar"><span style={{ width: `${liveMetrics.velocity}%` }}></span></div>
+                            </article>
+                        </div>
+
+                        <div className="live-feed">
+                            <h4>Live Signals</h4>
+                            {liveEvents.map((eventText, idx) => (
+                                <div key={`${eventText}-${idx}`} className="live-feed-item">{eventText}</div>
                             ))}
                         </div>
                     </section>

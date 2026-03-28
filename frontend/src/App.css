@@ -21,6 +21,14 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -265,6 +273,37 @@ select {
   color: var(--muted);
 }
 
+.sync-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #5f4a08;
+}
+
+.sync-strip strong {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.online {
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.18);
+}
+
+.status-dot.offline {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
+}
+
 .hero-progress {
   background: #fff8dc;
   border: 2px solid #efd57a;
@@ -442,6 +481,72 @@ select {
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analytics-card {
+  background: #fffef8;
+  border: 1px solid #efd57a;
+  border-radius: 12px;
+  padding: 9px;
+}
+
+.analytics-card small {
+  display: block;
+  font-size: 11px;
+  color: #7d6516;
+  margin-bottom: 4px;
+}
+
+.analytics-card strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.metric-bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #f3e4a7;
+  overflow: hidden;
+}
+
+.metric-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ffd53c, #ff9800);
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+.live-feed {
+  margin-top: 10px;
+  background: #fffdf4;
+  border: 1px solid #efd57a;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.live-feed h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.live-feed-item {
+  font-size: 12px;
+  color: #6d5711;
+  padding: 6px 0;
+  border-top: 1px dashed #edd483;
+}
+
+.live-feed-item:first-of-type {
+  border-top: none;
 }
 
 .domain-pills button {
@@ -899,6 +1004,7 @@ select {
   grid-template-columns: repeat(5, 1fr);
   border-top: 2px solid #efcd53;
   background: #fff8da;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .bottom-nav button {
@@ -1015,6 +1121,10 @@ select {
   pointer-events: none;
   z-index: 1300;
   animation: xpPop 1.15s ease-out forwards;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 .confetti-layer {
@@ -1158,6 +1268,11 @@ select {
     padding: 14px;
   }
 
+  .sync-strip strong {
+    width: 100%;
+    margin-left: 0;
+  }
+
   .screen-wrap {
     padding: 10px 12px 92px;
   }
@@ -1178,5 +1293,9 @@ select {
 
   .bottom-nav button span {
     font-size: 16px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
   }
 }
