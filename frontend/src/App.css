@@ -475,6 +475,7 @@ body {
   width: 100%;
   position: relative;
   overflow: visible;
+  isolation: isolate;
 }
 
 .path-node-wrap:nth-child(odd) {
@@ -493,7 +494,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
-  z-index: 1;
+  z-index: -1;
 }
 
 .path-connector-svg path {
@@ -654,18 +655,24 @@ body {
   font-size: .8rem;
   text-align: center;
   margin-top: 8px;
+  position: relative;
+  z-index: 2;
 }
 
 .path-node-sub {
   font-size: .7rem;
   color: var(--gray);
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .path-node-pts {
   font-size: .72rem;
   font-weight: 800;
   color: var(--green-dark);
+  position: relative;
+  z-index: 2;
 }
 
 @media (max-width: 420px) {
