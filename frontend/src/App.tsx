@@ -601,7 +601,7 @@ function App() {
                                     viewBox="0 0 160 120"
                                     aria-hidden="true"
                                 >
-                                    <path d="M80 4 C 26 28, 24 94, 80 116" />
+                                    <path d="M80 4 C 26 28, 24 94, 80 116" fill="none" />
                                 </svg>
                             )}
                             <div
