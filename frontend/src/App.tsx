@@ -66,7 +66,7 @@ const createConfettiPieces = (count = 30): ConfettiPiece[] =>
     }));
 
 const AURA_STORAGE_KEY = 'aura-state-v2';
-const AURA_LOGO_URL = '/logo.png';
+const AURA_LOGO_URL = 'logo.png';
 
 const toClockTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
