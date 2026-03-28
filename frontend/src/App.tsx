@@ -597,11 +597,14 @@ function App() {
                         <div className="path-node-wrap" key={node.id}>
                             {i > 0 && (
                                 <svg
-                                    className={`path-connector-svg ${i % 2 === 0 ? 'left-arc' : 'right-arc'} ${connectorState(pathNodes[i - 1].state)}`}
-                                    viewBox="0 0 160 120"
+                                    className={`path-connector-svg ${i % 2 === 0 ? 'to-left' : 'to-right'} ${connectorState(pathNodes[i - 1].state)}`}
+                                    viewBox="0 0 180 120"
                                     aria-hidden="true"
                                 >
-                                    <path d="M80 4 C 26 28, 24 94, 80 116" fill="none" />
+                                    <path
+                                        d={i % 2 === 0 ? 'M152 10 C 62 24, 62 96, 28 112' : 'M28 10 C 118 24, 118 96, 152 112'}
+                                        fill="none"
+                                    />
                                 </svg>
                             )}
                             <div

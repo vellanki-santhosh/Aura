@@ -487,13 +487,13 @@ body {
 
 .path-connector-svg {
   position: absolute;
-  width: 124px;
-  height: 94px;
-  top: -54px;
+  width: 180px;
+  height: 120px;
+  top: -58px;
   left: 50%;
-  transform-origin: center;
+  transform: translateX(-50%);
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
 
 .path-connector-svg path {
@@ -503,12 +503,12 @@ body {
   stroke-linecap: round;
 }
 
-.path-connector-svg.right-arc {
-  transform: translateX(-4px) rotate(28deg);
+.path-connector-svg.to-right {
+  transform: translateX(-50%);
 }
 
-.path-connector-svg.left-arc {
-  transform: translateX(-120px) rotate(-28deg) scaleX(-1);
+.path-connector-svg.to-left {
+  transform: translateX(-50%);
 }
 
 .path-connector-svg.done path {
