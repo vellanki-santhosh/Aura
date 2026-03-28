@@ -481,11 +481,12 @@ function AdminLayout({
                 width: '100%',
                 maxWidth: '480px',
                 background: 'white',
-                borderTop: `2px solid ${COLORS.primary}`,
-                boxShadow: `0 -2px 10px rgba(243, 156, 18, 0.14)`,
+                borderTop: `1px solid ${COLORS.primary}`,
+                boxShadow: `0 -1px 6px rgba(243, 156, 18, 0.12)`,
                 display: 'flex',
                 justifyContent: 'space-around',
-                padding: '4px 0',
+                padding: '1px 0',
+                height: '46px',
                 zIndex: 100
             }}>
                 {[
@@ -502,10 +503,10 @@ function AdminLayout({
                             background: currentScreen === item.id ? `linear-gradient(135deg, ${COLORS.primary}15, ${COLORS.secondary}15)` : 'transparent',
                             border: 'none',
                             color: currentScreen === item.id ? COLORS.primary : COLORS.textLight,
-                            padding: '6px 2px',
+                            padding: '3px 1px',
                             cursor: 'pointer',
-                            fontSize: '10px',
-                            borderTop: currentScreen === item.id ? `3px solid ${COLORS.primary}` : 'none',
+                            fontSize: '9px',
+                            borderTop: currentScreen === item.id ? `2px solid ${COLORS.primary}` : 'none',
                             transition: 'all 0.3s',
                             fontWeight: currentScreen === item.id ? '600' : 'normal'
                         }}
@@ -522,8 +523,8 @@ function AdminLayout({
                             }
                         }}
                     >
-                        <div style={{ fontSize: '10px', marginBottom: '1px', fontWeight: 800, letterSpacing: '0.4px', lineHeight: 1 }}>{item.icon}</div>
-                        <div style={{ fontSize: '10px', lineHeight: 1.1 }}>
+                        <div style={{ fontSize: '9px', marginBottom: '1px', fontWeight: 800, letterSpacing: '0.3px', lineHeight: 1 }}>{item.icon}</div>
+                        <div style={{ fontSize: '9px', lineHeight: 1 }}>
                             {item.label}
                         </div>
                     </button>
