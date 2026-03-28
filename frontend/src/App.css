@@ -481,6 +481,44 @@ body {
   position: absolute;
   top: 8px;
   width: 86px;
+.path-connector-svg {
+  position: absolute;
+  width: 124px;
+  height: 94px;
+  top: -54px;
+  left: 50%;
+  transform-origin: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.path-connector-svg path {
+  fill: none;
+  stroke-width: 7;
+  stroke-dasharray: 9 9;
+  stroke-linecap: round;
+}
+
+.path-connector-svg.right-arc {
+  transform: translateX(-4px) rotate(28deg);
+}
+
+.path-connector-svg.left-arc {
+  transform: translateX(-120px) rotate(-28deg) scaleX(-1);
+}
+
+.path-connector-svg.done path {
+  stroke: #2ECC71;
+}
+
+.path-connector-svg.active path {
+  stroke: #f9a825;
+  animation: dashPulse 1.4s ease-in-out infinite;
+}
+
+.path-connector-svg.locked path {
+  stroke: #b9b9b9;
+}
   height: 86px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
@@ -547,6 +585,10 @@ body {
   cursor: pointer;
   transition: transform .2s, box-shadow .2s;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+.path-node.tap-bounce {
+  animation: nodeTapBounce .22s ease;
 }
 
 .path-node:hover {
@@ -561,6 +603,14 @@ body {
   background: linear-gradient(135deg, var(--yellow), var(--yellow-dark));
   box-shadow: 0 4px 20px rgba(255, 214, 0, .6);
   animation: pulse 2s infinite;
+}
+.path-node.active::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 214, 0, .8);
+  animation: activeRingGlow 1.6s ease-out infinite;
 }
 
 @media (max-width: 420px) {
@@ -608,6 +658,11 @@ body {
   justify-content: center;
   font-size: .7rem;
   border: 2px solid #fff;
+  overflow: hidden;
+}
+.path-node .done-check svg {
+  width: 100%;
+  height: 100%;
 }
 
 .path-node .lock-icon {
@@ -623,6 +678,13 @@ body {
   align-items: center;
   justify-content: center;
   font-size: .6rem;
+  opacity: .5;
+  overflow: hidden;
+}
+.path-node .lock-icon svg {
+  width: 100%;
+  height: 100%;
+}
 }
 
 .path-node-label {
@@ -653,6 +715,44 @@ body {
 
   50% {
     box-shadow: 0 4px 30px rgba(255, 214, 0, .9)
+
+@keyframes activeRingGlow {
+  0% {
+    transform: scale(.96);
+    opacity: .85;
+  }
+
+  100% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+}
+
+@keyframes dashPulse {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(249, 168, 37, .2));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 6px rgba(249, 168, 37, .8));
+  }
+}
+
+@keyframes nodeTapBounce {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
   }
 }
 

@@ -60,6 +60,11 @@ const pickNodeAnimation = (seed: number) => {
 };
 
 const nodeAnimationSide = (rowIndex: number) => (rowIndex % 2 === 0 ? 'right' : 'left');
+const connectorState = (state: string) => {
+    if (state === 'done') return 'done';
+    if (state === 'active' || state === 'pending') return 'active';
+    return 'locked';
+};
 
 const FlameIcon = ({ hot }: { hot: boolean }) => (
     <svg className={`streak-flame ${hot ? 'hot' : ''}`} viewBox="0 0 24 24" aria-hidden="true" role="img">
@@ -110,6 +115,7 @@ function App() {
         const picked = SURPRISE_MISSIONS[Math.floor(Math.random() * SURPRISE_MISSIONS.length)];
         return { ...picked, done: false };
     });
+    const [bouncingNodeId, setBouncingNodeId] = useState<number | null>(null);
     const [animatedTopPoints, setAnimatedTopPoints] = useState(0);
     const [animatedProfilePoints, setAnimatedProfilePoints] = useState(0);
     const [pointsDeltaToast, setPointsDeltaToast] = useState<{ id: number; delta: number } | null>(null);
@@ -357,6 +363,18 @@ function App() {
         }
     };
 
+    const handleNodeTap = (node: any) => {
+        setBouncingNodeId(node.id);
+        setTimeout(() => {
+            setBouncingNodeId((prev) => (prev === node.id ? null : prev));
+            if (node.state !== 'locked') {
+                setModal({ isOpen: true, type: 'node', data: node });
+            } else {
+                showNotif('🔒 Complete previous activities first!');
+            }
+        }, 220);
+    };
+
     const playLuckySpin = () => {
         if (spinUsed || isSpinning) {
             showNotif('🎰 Lucky spin already used today.');
@@ -578,16 +596,37 @@ function App() {
                     {pathNodes.map((node, i) => (
                         <div className="path-node-wrap" key={node.id}>
                             {i > 0 && (
-                                <div className={`path-connector ${pathNodes[i - 1].state === 'done' ? 'done' : pathNodes[i - 1].state === 'active' || pathNodes[i - 1].state === 'pending' ? 'active' : ''}`}></div>
+                                <svg
+                                    className={`path-connector-svg ${i % 2 === 0 ? 'left-arc' : 'right-arc'} ${connectorState(pathNodes[i - 1].state)}`}
+                                    viewBox="0 0 160 120"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M80 4 C 26 28, 24 94, 80 116" />
+                                </svg>
                             )}
                             <div
-                                className={`path-node ${node.state}`}
-                                onClick={() => (node.state !== 'locked') ? setModal({ isOpen: true, type: 'node', data: node }) : showNotif('🔒 Complete previous activities first!')}
+                                className={`path-node ${node.state} ${bouncingNodeId === node.id ? 'tap-bounce' : ''}`}
+                                onClick={() => handleNodeTap(node)}
                             >
                                 <span className="node-icon">{node.icon}</span>
-                                {node.state === 'done' && <div className="done-check">✓</div>}
+                                {node.state === 'done' && (
+                                    <div className="done-check" aria-label="Completed">
+                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="12" fill="#2ECC71" />
+                                            <path d="M7.2 12.4l3 3.2 6.6-7" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+                                )}
                                 {node.state === 'pending' && <div className="done-check" style={{ background: '#2196F3' }}>⏳</div>}
-                                {node.state === 'locked' && <div className="lock-icon">🔒</div>}
+                                {node.state === 'locked' && (
+                                    <div className="lock-icon" aria-label="Locked">
+                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                            <path d="M8 10V7a4 4 0 1 1 8 0v3" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                                            <rect x="5" y="10" width="14" height="10" rx="2" fill="#7d7d7d" stroke="#fff" strokeWidth="1.2" />
+                                            <circle cx="12" cy="15" r="1.2" fill="#fff" />
+                                        </svg>
+                                    </div>
+                                )}
                             </div>
                             <div className="path-node-label">{node.label}</div>
                             <div className="path-node-sub">{node.sub}</div>
