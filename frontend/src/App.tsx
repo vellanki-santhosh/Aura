@@ -121,7 +121,7 @@ function App() {
         const rankData = lbData[user?.domain || 'Academic'] || [];
         const rankPosition =
             rankData
-                .map((item) => (item.you ? { ...item, pts: points } : item))
+                .map((item) => (item.you ? { ...item, name: user?.name || item.name, pts: points } : item))
                 .sort((a, b) => b.pts - a.pts)
                 .findIndex((item) => item.you) + 1;
 
@@ -462,7 +462,7 @@ function App() {
                     ))}
                 </div>
                 <div id="lb-list">
-                    {lbData[lbDomain]?.map(item => (item.you ? { ...item, pts: points, name: user?.name || item.name } : item))
+                    {lbData[lbDomain]?.map(item => (item.you ? { ...item, name: user?.name || item.name, pts: points } : item))
                         .sort((a, b) => b.pts - a.pts)
                         .map((item, i) => (
                             <div className={`lb-row ${item.you ? 'you' : ''}`} key={i}>
