@@ -22,6 +22,7 @@ const avatarColor = (name: string) => {
 };
 
 const LOGO_URL = `${import.meta.env.BASE_URL}logo.png`;
+const ONBOARDING_KEY = 'aura-onboarding-seen-v1';
 const PATH_ANIMATIONS = [
     { label: 'Rocket Sprint', src: `${import.meta.env.BASE_URL}animations/cat-in-a-rocket.lottie` },
     { label: 'Run Cycle', src: `${import.meta.env.BASE_URL}animations/run-cycle.lottie` },
@@ -35,6 +36,23 @@ const SURPRISE_MISSIONS = [
     { title: 'Upload one learning snapshot', reward: 14 },
     { title: 'Invite one friend to Aura', reward: 18 },
 ];
+const ONBOARDING_CARDS = [
+    {
+        title: 'Quest Path',
+        icon: '🧭',
+        text: 'Follow a gamified mission path, submit proofs, and level up with every contribution.',
+    },
+    {
+        title: 'Leaderboard',
+        icon: '🏆',
+        text: 'Compete with your peers by domain and climb ranks through consistent high-impact activity.',
+    },
+    {
+        title: 'Badges',
+        icon: '🎖️',
+        text: 'Unlock recognition badges that showcase your growth, teamwork, and campus leadership.',
+    },
+];
 
 const pickNodeAnimation = (seed: number) => {
     const index = Math.abs((seed * 9301 + 49297) % 233280) % PATH_ANIMATIONS.length;
@@ -44,6 +62,18 @@ const pickNodeAnimation = (seed: number) => {
 const nodeAnimationSide = (rowIndex: number) => (rowIndex % 2 === 0 ? 'right' : 'left');
 
 function App() {
+    const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            return localStorage.getItem(ONBOARDING_KEY) === '1';
+        } catch {
+            return false;
+        }
+    });
+    const [onboardingIndex, setOnboardingIndex] = useState(0);
+    const [onboardingExit, setOnboardingExit] = useState(false);
+    const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState<{ name: string; rollNo: string; domain: string; role: 'student' | 'admin' } | null>(null);
     const [loginRole, setLoginRole] = useState<'student' | 'admin'>('student');
@@ -87,6 +117,36 @@ function App() {
     }, []);
 
     const closeModal = () => setModal({ ...modal, isOpen: false });
+
+    const handleOnboardingSwipeStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        setTouchStartX(e.touches[0].clientX);
+    };
+
+    const handleOnboardingSwipeEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (touchStartX === null) return;
+        const delta = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(delta) > 45) {
+            if (delta < 0) {
+                setOnboardingIndex((prev) => (prev + 1) % ONBOARDING_CARDS.length);
+            } else {
+                setOnboardingIndex((prev) => (prev - 1 + ONBOARDING_CARDS.length) % ONBOARDING_CARDS.length);
+            }
+        }
+        setTouchStartX(null);
+    };
+
+    const completeOnboarding = () => {
+        if (onboardingExit) return;
+        setOnboardingExit(true);
+        setTimeout(() => {
+            setHasSeenOnboarding(true);
+            try {
+                localStorage.setItem(ONBOARDING_KEY, '1');
+            } catch {
+                // Ignore storage errors in restricted contexts.
+            }
+        }, 360);
+    };
 
     // Login handler
     const handleLogin = (e: React.FormEvent) => {
@@ -266,6 +326,76 @@ function App() {
         setSurpriseMission({ ...picked, done: false });
         showNotif('🔄 Surprise mission refreshed.');
     };
+
+    // --- ONBOARDING RENDER ---
+    if (!hasSeenOnboarding) {
+        return (
+            <div className={`onboarding-shell ${onboardingExit ? 'exit' : ''}`}>
+                <div className="onboarding-top">
+                    <img src={LOGO_URL} alt="AURA Logo" className="onboarding-logo" />
+                    <div className="onboarding-tagline" aria-label="Earn. Rise. Lead.">
+                        <span>Earn.</span>
+                        <span>Rise.</span>
+                        <span>Lead.</span>
+                    </div>
+                </div>
+
+                <div
+                    className="onboarding-slider"
+                    onTouchStart={handleOnboardingSwipeStart}
+                    onTouchEnd={handleOnboardingSwipeEnd}
+                >
+                    <div className="onboarding-track" style={{ transform: `translateX(-${onboardingIndex * 100}%)` }}>
+                        {ONBOARDING_CARDS.map((card, idx) => (
+                            <div
+                                className={`onboarding-card ${idx === onboardingIndex ? 'active' : ''}`}
+                                key={card.title}
+                                onClick={() => setOnboardingIndex(idx)}
+                            >
+                                <div className="onboarding-card-icon">{card.icon}</div>
+                                <div className="onboarding-card-title">{card.title}</div>
+                                <div className="onboarding-card-text">{card.text}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="onboarding-controls">
+                    <button
+                        type="button"
+                        className="onboarding-nav"
+                        onClick={() => setOnboardingIndex((prev) => (prev - 1 + ONBOARDING_CARDS.length) % ONBOARDING_CARDS.length)}
+                    >
+                        ‹
+                    </button>
+
+                    <div className="onboarding-dots">
+                        {ONBOARDING_CARDS.map((card, idx) => (
+                            <button
+                                type="button"
+                                key={card.title}
+                                className={`onboarding-dot ${idx === onboardingIndex ? 'active' : ''}`}
+                                onClick={() => setOnboardingIndex(idx)}
+                                aria-label={`Go to ${card.title}`}
+                            />
+                        ))}
+                    </div>
+
+                    <button
+                        type="button"
+                        className="onboarding-nav"
+                        onClick={() => setOnboardingIndex((prev) => (prev + 1) % ONBOARDING_CARDS.length)}
+                    >
+                        ›
+                    </button>
+                </div>
+
+                <button type="button" className="btn btn-yellow onboarding-cta" onClick={completeOnboarding}>
+                    Get Started
+                </button>
+            </div>
+        );
+    }
 
     // --- LOGIN SCREEN RENDER ---
     if (!isLoggedIn) {

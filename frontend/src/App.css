@@ -1223,6 +1223,199 @@ body {
   margin-bottom: 16px;
 }
 
+/* ─── ONBOARDING SPLASH ─── */
+.onboarding-shell {
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 28px 20px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: linear-gradient(180deg, #fffde7 0%, #fff9cc 100%);
+  animation: onboardingIn .45s ease;
+}
+
+.onboarding-shell.exit {
+  animation: onboardingOut .36s ease forwards;
+}
+
+.onboarding-top {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.onboarding-logo {
+  width: 138px;
+  height: auto;
+}
+
+.onboarding-tagline {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'Fredoka One';
+  font-size: 1.08rem;
+  color: var(--dark2);
+}
+
+.onboarding-tagline span {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: wordReveal .45s ease forwards;
+}
+
+.onboarding-tagline span:nth-child(1) {
+  animation-delay: .05s;
+}
+
+.onboarding-tagline span:nth-child(2) {
+  animation-delay: .2s;
+}
+
+.onboarding-tagline span:nth-child(3) {
+  animation-delay: .35s;
+}
+
+.onboarding-slider {
+  overflow: hidden;
+  border-radius: 20px;
+  touch-action: pan-y;
+}
+
+.onboarding-track {
+  display: flex;
+  transition: transform .32s ease;
+}
+
+.onboarding-card {
+  min-width: 100%;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.onboarding-card.active {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+}
+
+.onboarding-card-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--yellow), var(--yellow-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: var(--shadow-yellow);
+}
+
+.onboarding-card-title {
+  font-family: 'Fredoka One';
+  font-size: 1.12rem;
+  color: var(--dark);
+}
+
+.onboarding-card-text {
+  font-size: .86rem;
+  line-height: 1.45;
+  color: #555;
+  max-width: 290px;
+}
+
+.onboarding-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.onboarding-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: var(--dark);
+  box-shadow: var(--shadow);
+  font-size: 1.2rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.onboarding-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: #d8d8d8;
+  cursor: pointer;
+}
+
+.onboarding-dot.active {
+  background: var(--yellow-dark);
+  transform: scale(1.1);
+}
+
+.onboarding-cta {
+  width: 100%;
+  margin-top: auto;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: .95rem;
+  font-weight: 900;
+}
+
+@keyframes onboardingIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes onboardingOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(.985);
+  }
+}
+
+@keyframes wordReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ─── MOTION PASS (GLOBAL) ─── */
 body {
   background: linear-gradient(180deg, #fffde7 0%, #fff9cc 100%);
