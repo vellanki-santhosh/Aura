@@ -66,7 +66,7 @@ function PathScreen({
             <div className="wow-strip">
                 <div className="wow-card spin-card">
                     <div className="wow-title">🎰 Lucky Spin</div>
-                    <div className={`spin-wheel ${isSpinning ? 'spinning' : ''}`}>🎡</div>
+                    <div className={`spin-wheel ${isSpinning ? 'spinning' : ''}`} role="status" aria-live="polite" aria-label={isSpinning ? 'Lucky spin in progress' : 'Lucky spin idle'}>🎡</div>
                     <div className="wow-sub">Daily random reward for active members</div>
                     <button className="btn btn-yellow" onClick={onPlayLuckySpin} disabled={spinUsed || isSpinning}>
                         {isSpinning ? 'Spinning...' : spinUsed ? 'Used Today' : 'Spin Now'}
@@ -100,7 +100,19 @@ function PathScreen({
                                 <span className="path-arrow-head"></span>
                             </div>
                         )}
-                        <div className={`path-node ${node.state} ${bouncingNodeId === node.id ? 'tap-bounce' : ''}`} onClick={() => onNodeTap(node)}>
+                        <div
+                            className={`path-node ${node.state} ${bouncingNodeId === node.id ? 'tap-bounce' : ''}`}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`${node.label} ${node.state} ${node.pts}`}
+                            onClick={() => onNodeTap(node)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    onNodeTap(node);
+                                }
+                            }}
+                        >
                             <span className="node-icon">{node.icon}</span>
                             {node.state === 'done' && (
                                 <div className="done-check" aria-label="Completed">

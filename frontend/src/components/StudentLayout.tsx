@@ -105,7 +105,7 @@ const LoadingSpinner = () => (
         fontSize: '18px',
         color: COLORS.primary
     }}>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center' }} role="status" aria-live="polite" aria-label="Loading AURA screen">
             <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
             Loading AURA...
         </div>
@@ -334,6 +334,9 @@ function StudentLayout({
                 ].map(item => (
                     <button
                         key={item.id}
+                        type="button"
+                        aria-label={`Open ${item.label}`}
+                        title={item.label}
                         onClick={() => onNavigate(item.id)}
                         style={{
                             flex: 1,

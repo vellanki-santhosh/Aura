@@ -13,6 +13,7 @@ interface AdminLayoutProps {
     userName: string;
     userInitials: string;
     modal: ModalState;
+    notif: { msg: string; show: boolean };
     onModalClose: () => void;
     onPathNodeClick: (node: PathNode) => void;
     onUserClick: (user: UserData) => void;
@@ -52,7 +53,7 @@ const LoadingSpinner = () => (
         fontSize: '18px',
         color: COLORS.primary
     }}>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center' }} role="status" aria-live="polite" aria-label="Loading admin dashboard">
             <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
             Loading Admin Dashboard...
         </div>
@@ -70,6 +71,7 @@ function AdminLayout({
     userName,
     userInitials,
     modal,
+    notif,
     onModalClose,
     onPathNodeClick,
     onUserClick,
@@ -497,6 +499,9 @@ function AdminLayout({
                 ].map(item => (
                     <button
                         key={item.id}
+                        type="button"
+                        aria-label={`Open ${item.label}`}
+                        title={item.label}
                         onClick={() => onNavigate(item.id)}
                         style={{
                             flex: 1,
@@ -532,8 +537,24 @@ function AdminLayout({
             </div>
 
             {/* Modal & Toast */}
-            <ModalComponent modal={modal} onModalClose={onModalClose} />
-            <NotifToastComponent />
+            <ModalComponent isOpen={modal.isOpen} onClose={onModalClose}>
+                {modal.type === 'node' && (
+                    <>
+                        <div className="modal-title">{modal.data.icon} {modal.data.label}</div>
+                        <div style={{ fontSize: '.86rem', color: '#666', marginBottom: '8px' }}>{modal.data.sub}</div>
+                        <div style={{ fontSize: '.84rem', fontWeight: 700, color: '#444' }}>Reward: {modal.data.pts}</div>
+                    </>
+                )}
+                {modal.type === 'user' && (
+                    <>
+                        <div className="modal-title">👤 {modal.data.name}</div>
+                        <div style={{ fontSize: '.84rem', color: '#555' }}>Role: {modal.data.role}</div>
+                        <div style={{ fontSize: '.84rem', color: '#555' }}>Domain: {modal.data.domain}</div>
+                        <div style={{ fontSize: '.84rem', color: '#555', marginTop: '6px' }}>Points: {modal.data.pts}</div>
+                    </>
+                )}
+            </ModalComponent>
+            <NotifToastComponent show={notif.show} message={notif.msg} />
         </div>
     );
 }

@@ -981,6 +981,7 @@ function App() {
                     userName={user?.name || 'Admin'}
                     userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'A'}
                     modal={modal}
+                    notif={notif}
                     onModalClose={closeModal}
                     onPathNodeClick={handleNodeTap}
                     onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}

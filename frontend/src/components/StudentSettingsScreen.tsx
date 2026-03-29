@@ -26,6 +26,9 @@ function StudentSettingsScreen({ currentScreen, user, points, onLogout }: Studen
     const [hidePoints, setHidePoints] = useState(false);
     const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('light');
     const [language, setLanguage] = useState('en');
+    const now = new Date();
+    const memberSince = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const lastUpdated = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
     return (
         <div className={`screen ${currentScreen === 'settings' ? 'active' : ''} fade-in`}>
@@ -76,7 +79,7 @@ function StudentSettingsScreen({ currentScreen, user, points, onLogout }: Studen
                             </div>
                             <div style={{ background: 'linear-gradient(135deg, #81C784, #66BB6A)', borderRadius: '10px', padding: '12px', textAlign: 'center', color: '#fff' }}>
                                 <div style={{ fontSize: '.75rem', fontWeight: 700 }}>MEMBER SINCE</div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>Jan 2026</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>{memberSince}</div>
                             </div>
                         </div>
                     </div>
@@ -283,7 +286,7 @@ function StudentSettingsScreen({ currentScreen, user, points, onLogout }: Studen
                         <div style={{ fontSize: '.85rem', color: '#666', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div>📱 <strong>Version:</strong> 1.0.0</div>
                             <div>🏢 <strong>Build:</strong> PWA v8.0.3</div>
-                            <div>📅 <strong>Last Updated:</strong> Mar 29, 2026</div>
+                            <div>📅 <strong>Last Updated:</strong> {lastUpdated}</div>
                         </div>
                         <button className="btn btn-outline" style={{ width: '100%', marginTop: '12px', borderColor: '#2196F3', color: '#2196F3' }}>💬 Send Feedback</button>
                     </div>
