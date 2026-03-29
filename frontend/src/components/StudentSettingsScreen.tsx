@@ -7,7 +7,14 @@ type StudentUser = {
     role: 'student' | 'admin';
 };
 
-function StudentSettingsScreen({ currentScreen, user, points, onLogout }: { currentScreen: string; user: StudentUser | null; points: number; onLogout: () => void; }) {
+interface StudentSettingsScreenProps {
+    currentScreen: string;
+    user: StudentUser | null;
+    points: number;
+    onLogout: () => void;
+}
+
+function StudentSettingsScreen({ currentScreen, user, points, onLogout }: StudentSettingsScreenProps) {
     const [settingsTab, setSettingsTab] = useState('profile');
     const [bioText, setBioText] = useState('Passionate learner & campus contributor');
     const [notifPush, setNotifPush] = useState(true);

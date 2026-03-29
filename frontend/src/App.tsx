@@ -525,10 +525,23 @@ function App() {
     const pendingQueue = useMemo(() => adminQueue.filter(s => !approvedSet.has(s.id) && !rejectedSet.has(s.id)), [adminQueue, approvedSet, rejectedSet]);
 
     const approveSubmission = useCallback((id: string): void => {
+        if (approvedSet.has(id) || rejectedSet.has(id)) return;
+
         const queueItem = adminQueue.find(s => s.id === id);
         const pts = queueItem?.pts ?? 0;
-        setApprovedSet(new Set(approvedSet.add(id)));
-        setPoints(p => p + pts);
+
+        setApprovedSet((prev) => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+
+        if (queueItem) {
+            setAdminValidated((prev) => [queueItem, ...prev.filter((item) => item.id !== queueItem.id)]);
+        }
+
+        setAdminQueue((prev) => prev.filter((item) => item.id !== id));
+        setPoints((p) => p + pts);
 
         // Find and Finalize Node if linked
         if (queueItem?.nodeId !== undefined) {
@@ -544,12 +557,26 @@ function App() {
             });
         }
         showNotif(`✅ Approved! +${pts} pts awarded`);
-    }, [approvedSet, adminQueue, showNotif]);
+    }, [approvedSet, rejectedSet, adminQueue, showNotif]);
 
     const rejectSubmission = useCallback((id: string): void => {
-        setRejectedSet(new Set(rejectedSet.add(id)));
+        if (approvedSet.has(id) || rejectedSet.has(id)) return;
+
+        const queueItem = adminQueue.find((s) => s.id === id);
+
+        setRejectedSet((prev) => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+
+        if (queueItem) {
+            setAdminRejected((prev) => [queueItem, ...prev.filter((item) => item.id !== queueItem.id)]);
+        }
+
+        setAdminQueue((prev) => prev.filter((item) => item.id !== id));
         showNotif('❌ Submission rejected');
-    }, [rejectedSet, showNotif]);
+    }, [approvedSet, rejectedSet, adminQueue, showNotif]);
 
     const completeNode = (id: number, proofDetails?: { hasImg: boolean; desc?: string }): void => {
         const node = pathNodes.find(n => n.id === id);
@@ -572,7 +599,7 @@ function App() {
                 id: `node-${id}-${Date.now()}`,
                 nodeId: id
             };
-            setAdminQueue([newSub, ...adminQueue]);
+            setAdminQueue((prev) => [newSub, ...prev]);
 
             closeModal();
             showNotif(`📤 Submitted! Pending Admin Approval...`);
@@ -606,6 +633,18 @@ function App() {
             });
         }, 1500);
     };
+
+    const handleCameraProofChange = useCallback((file: File | null): void => {
+        setPhotoProof(file);
+        setPhotoPreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return file ? URL.createObjectURL(file) : '';
+        });
+    }, []);
+
+    const handleFileProofChange = useCallback((file: File | null): void => {
+        setFileProof(file);
+    }, []);
 
     const handleNodeTap = (node: PathNode): void => {
         setBouncingNodeId(node.id);
@@ -650,9 +689,18 @@ function App() {
     };
 
     const registerEvent = (eventId: number, title: string): void => {
+        if (registeredSet.has(eventId)) {
+            showNotif(`✅ Already registered for ${title}`);
+            return;
+        }
+
         if (points >= 15) {
-            setRegisteredSet(new Set(registeredSet.add(eventId)));
-            setPoints(p => p - 15);
+            setRegisteredSet((prev) => {
+                const next = new Set(prev);
+                next.add(eventId);
+                return next;
+            });
+            setPoints((p) => p - 15);
             showNotif(`📅 Registered for ${title}! -15 pts`);
         } else {
             showNotif('⚠️ Not enough points to register!');
@@ -660,7 +708,11 @@ function App() {
     };
 
     const rejectEvent = (eventId: number, title: string): void => {
-        setDeclinedSet(new Set(declinedSet.add(eventId)));
+        setDeclinedSet((prev) => {
+            const next = new Set(prev);
+            next.add(eventId);
+            return next;
+        });
         showNotif(`❌ You declined ${title}`);
     };
 
@@ -865,8 +917,14 @@ function App() {
                     userSearch={userSearch}
                     userFilterDomain={userFilterDomain}
                     modal={modal}
+                    notif={notif}
                     filteredUsers={filteredUsers}
                     liveTickerItems={liveTickerItems}
+                    photoProof={photoProof}
+                    fileProof={fileProof}
+                    photoPreviewUrl={photoPreviewUrl}
+                    githubProofUrl={githubProofUrl}
+                    isUploadingProof={isUploadingProof}
                     onPathNodeClick={handleNodeTap}
                     onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
                     onModalClose={closeModal}
@@ -887,6 +945,9 @@ function App() {
                     onShareLinkedIn={shareContributionOnLinkedIn}
                     onLogout={handleLogout}
                     onPathNodeProofUpload={submitMissionProof}
+                    onCameraProofChange={handleCameraProofChange}
+                    onFileProofChange={handleFileProofChange}
+                    onGithubProofUrlChange={setGithubProofUrl}
                     onUpdateTeamMember={() => {}}
                     onUpdateSurpriseMission={setSurpriseMission}
                     avatarColor={avatarColor}

@@ -47,8 +47,14 @@ interface StudentLayoutProps {
     userSearch: string;
     userFilterDomain: string;
     modal: ModalState;
+    notif: { msg: string; show: boolean };
     filteredUsers: UserData[];
     liveTickerItems: LiveTickerItem[];
+    photoProof: File | null;
+    fileProof: File | null;
+    photoPreviewUrl: string;
+    githubProofUrl: string;
+    isUploadingProof: boolean;
     onPathNodeClick: (node: PathNode) => void;
     onUserClick: (user: UserData) => void;
     onModalClose: () => void;
@@ -68,7 +74,10 @@ interface StudentLayoutProps {
     onClaimBadge: (badge: string) => void;
     onShareLinkedIn: () => void;
     onLogout: () => void;
-    onPathNodeProofUpload: (nodeId: number, file: File) => void;
+    onPathNodeProofUpload: () => void;
+    onCameraProofChange: (file: File | null) => void;
+    onFileProofChange: (file: File | null) => void;
+    onGithubProofUrlChange: (value: string) => void;
     onUpdateTeamMember: (challengeId: string, name: string, initials: string) => void;
     onUpdateSurpriseMission: (mission: SurpriseMission) => void;
     avatarColor: (name: string) => string;
@@ -134,8 +143,14 @@ function StudentLayout({
     userSearch,
     userFilterDomain,
     modal,
+    notif,
     filteredUsers,
     liveTickerItems,
+    photoProof,
+    fileProof,
+    photoPreviewUrl,
+    githubProofUrl,
+    isUploadingProof,
     onPathNodeClick,
     onUserClick,
     onModalClose,
@@ -156,6 +171,9 @@ function StudentLayout({
     onShareLinkedIn,
     onLogout,
     onPathNodeProofUpload,
+    onCameraProofChange,
+    onFileProofChange,
+    onGithubProofUrlChange,
     onUpdateTeamMember,
     onUpdateSurpriseMission,
     avatarColor,
@@ -173,6 +191,13 @@ function StudentLayout({
     ModalComponent,
     NotifToastComponent,
 }: StudentLayoutProps) {
+    const activeNode = modal.type === 'node' ? modal.data : null;
+    const selectedUser = modal.type === 'user' ? modal.data : null;
+    const requiresGithub = activeNode ? /github|repository/i.test(activeNode.proofType || '') : false;
+    const githubUrlValid = !requiresGithub || /^https?:\/\/(www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/.*)?$/i.test(githubProofUrl.trim());
+    const hasBinaryProof = Boolean(photoProof || fileProof);
+    const canUploadProof = Boolean(activeNode && activeNode.state === 'active' && !isUploadingProof && (requiresGithub ? githubUrlValid : hasBinaryProof));
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100vh', background: COLORS.background }}>
             {/* Student Header - Unified Yellow Theme */}
@@ -345,8 +370,111 @@ function StudentLayout({
             </div>
 
             {/* Modal & Toast */}
-            <ModalComponent modal={modal} onModalClose={onModalClose} />
-            <NotifToastComponent />
+            <ModalComponent isOpen={modal.isOpen} onClose={onModalClose}>
+                {activeNode && (
+                    <>
+                        <div className="modal-title">{activeNode.icon} {activeNode.label}</div>
+                        <div style={{ fontSize: '.86rem', color: '#666', marginBottom: '8px' }}>{activeNode.sub}</div>
+                        <div style={{ fontSize: '.84rem', fontWeight: 700, color: '#444', marginBottom: '12px' }}>Reward: {activeNode.pts}</div>
+
+                        {activeNode.state === 'active' && (
+                            <>
+                                <div style={{ fontSize: '.8rem', fontWeight: 800, marginBottom: '8px', color: '#444' }}>
+                                    Upload verification proof
+                                </div>
+
+                                {requiresGithub ? (
+                                    <>
+                                        <input
+                                            type="url"
+                                            placeholder="https://github.com/username/repository"
+                                            value={githubProofUrl}
+                                            onChange={(e) => onGithubProofUrlChange(e.target.value)}
+                                            style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '.85rem' }}
+                                        />
+                                        <div className={`proof-hint ${githubUrlValid ? 'valid' : 'invalid'}`}>
+                                            {githubUrlValid ? 'Valid GitHub URL' : 'Enter a valid public GitHub repository URL'}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="proof-options">
+                                            <label className="proof-option-card">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    capture="environment"
+                                                    style={{ display: 'none' }}
+                                                    onChange={(e) => onCameraProofChange(e.target.files?.[0] || null)}
+                                                />
+                                                <div style={{ fontSize: '1.4rem' }}>📷</div>
+                                                <div style={{ fontWeight: 800, fontSize: '.82rem' }}>Camera</div>
+                                            </label>
+
+                                            <label className="proof-option-card">
+                                                <input
+                                                    type="file"
+                                                    style={{ display: 'none' }}
+                                                    onChange={(e) => onFileProofChange(e.target.files?.[0] || null)}
+                                                />
+                                                <div style={{ fontSize: '1.4rem' }}>📎</div>
+                                                <div style={{ fontWeight: 800, fontSize: '.82rem' }}>Attach File</div>
+                                            </label>
+                                        </div>
+
+                                        {(photoPreviewUrl || fileProof) && (
+                                            <div className="proof-preview-wrap">
+                                                {photoPreviewUrl && (
+                                                    <div className="proof-photo-preview">
+                                                        <img src={photoPreviewUrl} alt="Proof preview" />
+                                                    </div>
+                                                )}
+                                                {fileProof && (
+                                                    <div className="proof-file-meta">
+                                                        <div>Selected file: {fileProof.name}</div>
+                                                        <div>{Math.max(1, Math.round(fileProof.size / 1024))} KB</div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {!hasBinaryProof && <div className="proof-hint invalid">Please attach photo or file proof</div>}
+                                    </>
+                                )}
+
+                                <button
+                                    className="btn"
+                                    style={{ width: '100%', marginTop: '14px', background: '#FFD600', color: '#2C3E50', opacity: canUploadProof ? 1 : 0.6 }}
+                                    disabled={!canUploadProof}
+                                    onClick={onPathNodeProofUpload}
+                                >
+                                    {isUploadingProof ? (
+                                        <span className="proof-uploading-inline"><span className="proof-upload-spinner" />Uploading...</span>
+                                    ) : (
+                                        'Submit For Verification'
+                                    )}
+                                </button>
+                            </>
+                        )}
+
+                        {activeNode.state === 'pending' && <div className="proof-hint valid">Already submitted. Awaiting admin verification.</div>}
+                        {activeNode.state === 'done' && <div className="proof-hint valid">Already verified and completed.</div>}
+                        {activeNode.state === 'locked' && <div className="proof-hint invalid">Locked. Complete previous activity first.</div>}
+                    </>
+                )}
+
+                {selectedUser && (
+                    <>
+                        <div className="modal-title">👤 {selectedUser.name}</div>
+                        <div style={{ fontSize: '.84rem', color: '#555' }}>Role: {selectedUser.role}</div>
+                        <div style={{ fontSize: '.84rem', color: '#555' }}>Domain: {selectedUser.domain}</div>
+                        <div style={{ fontSize: '.84rem', color: '#555', marginTop: '6px' }}>Points: {selectedUser.pts}</div>
+                        <div style={{ fontSize: '.8rem', marginTop: '8px', color: '#777' }}>
+                            Badges: {selectedUser.badges?.length ? selectedUser.badges.join(', ') : 'No badges yet'}
+                        </div>
+                    </>
+                )}
+            </ModalComponent>
+            <NotifToastComponent show={notif.show} message={notif.msg} />
         </div>
     );
 }
