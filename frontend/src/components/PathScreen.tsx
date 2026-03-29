@@ -133,7 +133,11 @@ function PathScreen({
                                         loop 
                                         autoplay 
                                         style={{ width: '78px', height: '78px' }}
-                                        onError={(e) => console.warn('Lottie load failed:', e)}
+                                        onError={(e) => {
+                                            if (import.meta.env.DEV) {
+                                                console.warn('Lottie load failed:', e)
+                                            }
+                                        }}
                                     />
                                 </ErrorBoundary>
                             )}

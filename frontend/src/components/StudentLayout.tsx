@@ -107,7 +107,7 @@ const LoadingSpinner = () => (
     }}>
         <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
-            Loading Student Hub...
+            Loading AURA...
         </div>
     </div>
 );
@@ -209,7 +209,7 @@ function StudentLayout({
                 boxShadow: `0 4px 12px rgba(243, 156, 18, 0.3)`,
                 borderBottom: `3px solid ${COLORS.border}`
             }}>
-                <h1 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold' }}>🌟 Student Hub</h1>
+                <h1 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold' }}>🌟 AURA</h1>
                 <p style={{ margin: '8px 0 0 0', fontSize: '15px', opacity: 0.95 }}>
                     Welcome, <strong>{userName}</strong>! • <span style={{background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px'}}>{points} pts</span> • <span style={{fontSize: '16px'}}>{streak}🔥</span>
                 </p>
