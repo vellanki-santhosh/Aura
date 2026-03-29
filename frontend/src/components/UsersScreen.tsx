@@ -1,24 +1,18 @@
 import React from 'react';
 
-export interface UserItem {
-    initials: string;
-    name: string;
-    role: string;
-    pts: number;
-    badges: string[];
-    available: boolean;
-    domain: string;
-}
+// Interfaces centralized in App.tsx
+
+import type { UserData } from '../App';
 
 export interface UsersScreenProps {
     currentScreen: string;
     userSearch: string;
     userFilterDomain: string;
-    filteredUsers: UserItem[];
+    filteredUsers: UserData[];
     avatarColor: (name: string) => string;
     onSearchChange: (value: string) => void;
     onFilterChange: (domain: string) => void;
-    onUserClick: (user: UserItem) => void;
+    onUserClick: (user: UserData) => void;
 }
 
 function UsersScreen({

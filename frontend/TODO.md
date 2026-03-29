@@ -1,6 +1,7 @@
 # AURA Frontend Bug Fix TODO
 
 ## Phase 1: Critical Fixes ✅ COMPLETE
+## Phase 2: TypeScript & Props [IN PROGRESS]
 - [x] Create this TODO.md  
 - [x] App.tsx: Add ErrorBoundary wrapper
 - [x] PathScreen.tsx: Fix conditional done-check + Lottie error handling
@@ -10,8 +11,9 @@
 - [x] Inline styles → CSS class consistency
 
 ## Phase 2: TypeScript & Props [IN PROGRESS]
-- [ ] App.tsx: Centralize all interfaces
+- [x] App.tsx: Centralize all interfaces
 - [ ] Component Props: Comprehensive interfaces + defaults
+- [ ] StudentSettingsScreen.tsx: Remove undefined CSS classes
 - [ ] FlameIcon: Add fallback rendering
 
 ## Phase 3: Performance

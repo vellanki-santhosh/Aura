@@ -2,30 +2,13 @@ import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import ErrorBoundary from './ErrorBoundary';
 
-export interface PathNode {
-    id: number;
-    icon: string;
-    label: string;
-    sub: string;
-    pts: string;
-    state: 'done' | 'active' | 'locked' | 'pending';
-    proofType: string;
-}
+// Interfaces centralized in App.tsx
 
-export interface SurpriseMission {
-    title: string;
-    reward: number;
-    done: boolean;
-}
-
-export interface TickerItem {
-    id: string;
-    text: string;
-}
+import type { PathNode, SurpriseMission, LiveTickerItem } from '../App';
 
 export interface PathScreenProps {
     currentScreen: string;
-    activeTickerItem: TickerItem | null;
+    activeTickerItem: LiveTickerItem | null;
     tickerIndex: number;
     onTickerTap: () => void;
     isSpinning: boolean;

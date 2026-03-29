@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
 
-export interface StudentUser {
+type StudentUser = {
     name: string;
     rollNo: string;
     domain: string;
     role: 'student' | 'admin';
-}
+};
 
-export interface StudentSettingsScreenProps {
-    currentScreen: string;
-    user: StudentUser | null;
-    points: number;
-    onLogout: () => void;
-}
-
-function StudentSettingsScreen({ currentScreen, user, points, onLogout }: StudentSettingsScreenProps) {
+function StudentSettingsScreen({ currentScreen, user, points, onLogout }: { currentScreen: string; user: StudentUser | null; points: number; onLogout: () => void; }) {
     const [settingsTab, setSettingsTab] = useState('profile');
     const [bioText, setBioText] = useState('Passionate learner & campus contributor');
     const [notifPush, setNotifPush] = useState(true);

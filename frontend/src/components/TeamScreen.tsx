@@ -1,20 +1,8 @@
 import React from 'react';
 
-export interface TeamMember {
-    name: string;
-    initials: string;
-}
+// Interfaces centralized in App.tsx
 
-export interface TeamChallenge {
-    id: string;
-    title: string;
-    domain: string;
-    deadline: string;
-    target: number;
-    completed: number;
-    members: TeamMember[];
-    bonusAwarded: boolean;
-}
+import type { TeamChallenge } from '../App';
 
 export interface TeamScreenProps {
     currentScreen: string;
@@ -69,8 +57,8 @@ function TeamScreen({ currentScreen, teamChallenges, teamConfettiChallengeId, av
                                     <span>Progress</span>
                                     <span>{challenge.completed}/{challenge.target} done</span>
                                 </div>
-                                <div className="progress-bar" style={{ marginBottom: 0 }}>
-                                    <div className="progress-fill yellow" style={{ width: `${progressPct}%` }}></div>
+                                <div style={{ background: '#f0f0f0', borderRadius: '10px', height: '10px', overflow: 'hidden', marginBottom: 0 }}>
+                                    <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--yellow), var(--yellow-dark))', borderRadius: '10px', width: `${progressPct}%`, transition: 'width 0.8s ease' }}></div>
                                 </div>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

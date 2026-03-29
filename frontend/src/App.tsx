@@ -232,7 +232,12 @@ function App() {
     const [users, setUsers] = useState<UserData[]>(initialUsersData as UserData[]);
     const [adminQueue, setAdminQueue] = useState<AdminQueueItem[]>(initialAdminQueue as AdminQueueItem[]);
     const [adminValidated, setAdminValidated] = useState<AdminQueueItem[]>(initialAdminValidated as AdminQueueItem[]);
-    const [adminRejected, setAdminRejected] = useState<AdminQueueItem[]>(initialAdminRejected as AdminQueueItem[]);
+    const [adminRejected, setAdminRejected] = useState<AdminQueueItem[]>(
+        initialAdminRejected.map((item) => ({
+            ...item,
+            hasImg: false,
+        })) as AdminQueueItem[]
+    );
     const [events, setEvents] = useState<Event[]>(initialEvents as Event[]);
     const [approvedSet, setApprovedSet] = useState(new Set<string>());
     const [rejectedSet, setRejectedSet] = useState(new Set<string>());
@@ -264,10 +269,9 @@ function App() {
     const [githubProofUrl, setGithubProofUrl] = useState('');
     const [isUploadingProof, setIsUploadingProof] = useState(false);
 
-const showNotif = useCallback((msg: string): void => {
+    const showNotif = useCallback((msg: string): void => {
         setNotif({ msg, show: true });
-        const timeoutId = setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
-        return () => clearTimeout(timeoutId);
+        setTimeout(() => setNotif(prev => ({ ...prev, show: false })), 2800);
     }, []);
 
     const animateCount = (target: number, setter: React.Dispatch<React.SetStateAction<number>>): void => {
@@ -339,7 +343,7 @@ const showNotif = useCallback((msg: string): void => {
         }
     }, [modal.isOpen, modal.type]);
 
-    const closeModal = (): void => setModal((prev) => ({ ...prev, isOpen: false }));
+    const closeModal = (): void => setModal({ isOpen: false, type: '', data: null });
 
     const handleOnboardingSwipeStart = (e: React.TouchEvent<HTMLDivElement>): void => {
         setTouchStartX(e.touches[0].clientX);
@@ -372,7 +376,7 @@ const showNotif = useCallback((msg: string): void => {
     };
 
     // Login handler
-const handleLogin = useCallback((e: React.FormEvent): void => {
+    const handleLogin = useCallback((e: React.FormEvent): void => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
         const name = formData.get('name') as string;
@@ -456,24 +460,23 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
     const [userFilterDomain, setUserFilterDomain] = useState('All');
 
     const liveTickerItems = useMemo<LiveTickerItem[]>(() => {
-        const activityItems = activityData.map((a, i) => ({
+        const activityItems: LiveTickerItem[] = activityData.map((a, i) => ({
             id: `activity-${i}`,
             text: `✨ ${a.text} (${a.pts})`,
             screen: EVENT_KEYWORD_REGEX.test(a.text) ? 'events' : 'path',
         }));
 
-        const leaderboardItems = Object.entries(lbData as Record<string, LeaderboardEntry[]>)
-            .map(([domain, rows]) => {
-            const top = rows[0];
-                if (!top) return null;
-                return {
+        const leaderboardItems: LiveTickerItem[] = Object.entries(lbData as Record<string, LeaderboardEntry[]>)
+            .flatMap(([domain, rows]) => {
+                const top = rows[0];
+                if (!top) return [];
+                return [{
                     id: `lb-${domain}`,
                     text: `🏆 ${top.name} just earned ${top.pts} pts in ${domain}`,
                     screen: 'leaderboard',
                     lbDomain: domain,
-                };
-            })
-            .filter((item): item is LiveTickerItem => item !== null);
+                }];
+            });
 
         const newestEvent = events[0]
             ? [{
@@ -521,12 +524,13 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
     const [adminTab, setAdminTab] = useState('queue');
     const pendingQueue = useMemo(() => adminQueue.filter(s => !approvedSet.has(s.id) && !rejectedSet.has(s.id)), [adminQueue, approvedSet, rejectedSet]);
 
-    const approveSubmission = useCallback((id: string, pts: number): void => {
+    const approveSubmission = useCallback((id: string): void => {
+        const queueItem = adminQueue.find(s => s.id === id);
+        const pts = queueItem?.pts ?? 0;
         setApprovedSet(new Set(approvedSet.add(id)));
         setPoints(p => p + pts);
 
         // Find and Finalize Node if linked
-        const queueItem = adminQueue.find(s => s.id === id);
         if (queueItem?.nodeId !== undefined) {
             const nodeId = queueItem.nodeId;
             setPathNodes(prev => {
@@ -576,9 +580,11 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
     };
 
     const submitMissionProof = (): void => {
-        if (!modal.data || modal.data.state !== 'active') return;
+        if (!modal.isOpen || modal.type !== 'node' || modal.data.state !== 'active') return;
 
-        const needsGithubUrl = requiresGithubUrl(modal.data.proofType);
+        const nodeData = modal.data;
+
+        const needsGithubUrl = requiresGithubUrl(nodeData.proofType);
         const githubUrlValid = !needsGithubUrl || GITHUB_REPO_URL_REGEX.test(githubProofUrl.trim());
         const hasBinaryProof = Boolean(photoProof || fileProof);
         const isValidProof = needsGithubUrl ? githubUrlValid : hasBinaryProof;
@@ -594,9 +600,9 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
 
             showNotif('✅ Proof uploaded successfully!');
             setIsUploadingProof(false);
-            completeNode(modal.data.id, {
+            completeNode(nodeData.id, {
                 hasImg: Boolean(photoProof),
-                desc: details.length ? details.join(' • ') : `Submission for ${modal.data.label} activity.`,
+                desc: details.length ? details.join(' • ') : `Submission for ${nodeData.label} activity.`,
             });
         }, 1500);
     };
@@ -878,7 +884,7 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
                     onAwardTeamBonus={() => {}}
                     onJoinTeamChallenge={joinTeamChallenge}
                     onClaimBadge={(badge) => showNotif('🎖️ ' + badge + ' — Earned!')}
-                    onShareLinkedIn={shareLinkedInPost}
+                    onShareLinkedIn={shareContributionOnLinkedIn}
                     onLogout={handleLogout}
                     onPathNodeProofUpload={submitMissionProof}
                     onUpdateTeamMember={() => {}}
@@ -919,7 +925,7 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
                     onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
                     onQueueApprove={approveSubmission}
                     onQueueReject={rejectSubmission}
-                    onAddPathNode={addActivity}
+                    onAddPathNode={(node) => addActivity(node.label, node.pts)}
                     onEditPathNode={() => {}}
                     onPathNodeProofUpload={submitMissionProof}
                     onCreateEvent={createEvent}
