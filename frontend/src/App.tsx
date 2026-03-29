@@ -831,16 +831,33 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
                 <StudentLayout
                     currentScreen={currentScreen}
                     onNavigate={setCurrentScreen}
+                    logoUrl={LOGO_URL}
                     pathNodes={pathNodes}
                     users={users}
                     events={events}
                     lbData={lbData}
+                    badgesData={badgesData}
+                    activityData={activityData}
                     points={points}
+                    animatedProfilePoints={animatedProfilePoints}
                     streak={streak}
+                    user={user}
                     userName={user?.name || 'Student'}
                     userInitials={user?.name?.split(' ').map(n => n[0]).join('') || 'S'}
                     surpriseMission={surpriseMission}
                     teamChallenges={teamChallenges}
+                    teamConfettiChallengeId={teamConfettiChallengeId}
+                    activeTickerItem={activeTickerItem}
+                    tickerIndex={tickerIndex}
+                    isSpinning={isSpinning}
+                    spinUsed={spinUsed}
+                    spinReward={spinReward}
+                    bouncingNodeId={bouncingNodeId}
+                    registeredSet={registeredSet}
+                    declinedSet={declinedSet}
+                    lbDomain={lbDomain}
+                    userSearch={userSearch}
+                    userFilterDomain={userFilterDomain}
                     modal={modal}
                     filteredUsers={filteredUsers}
                     liveTickerItems={liveTickerItems}
@@ -848,14 +865,29 @@ const handleLogin = useCallback((e: React.FormEvent): void => {
                     onUserClick={(u) => setModal({ isOpen: true, type: 'user', data: u })}
                     onModalClose={closeModal}
                     onLuckySpinClick={playLuckySpin}
+                    onTickerTap={handleTickerTap}
+                    onCompleteSurpriseMission={completeSurpriseMission}
+                    onRerollSurpriseMission={rerollSurpriseMission}
                     onEventRegister={registerEvent}
+                    onEventReject={rejectEvent}
+                    onDomainChange={setLbDomain}
+                    onSearchChange={setUserSearch}
+                    onFilterChange={setUserFilterDomain}
                     onAddTeamChallenge={() => {}}
                     onCompleteTeamChallenge={() => {}}
                     onAwardTeamBonus={() => {}}
+                    onJoinTeamChallenge={joinTeamChallenge}
                     onClaimBadge={(badge) => showNotif('🎖️ ' + badge + ' — Earned!')}
+                    onShareLinkedIn={shareLinkedInPost}
+                    onLogout={handleLogout}
                     onPathNodeProofUpload={submitMissionProof}
                     onUpdateTeamMember={() => {}}
                     onUpdateSurpriseMission={setSurpriseMission}
+                    avatarColor={avatarColor}
+                    pickNodeAnimation={pickNodeAnimation}
+                    nodeAnimationSide={nodeAnimationSide}
+                    connectorState={connectorState}
+                    FlameIcon={FlameIcon}
                     PathScreenComponent={PathScreen}
                     EventsScreenComponent={EventsScreen}
                     LeaderboardScreenComponent={LeaderboardScreen}

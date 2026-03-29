@@ -19,16 +19,33 @@ const COLORS = {
 interface StudentLayoutProps {
     currentScreen: string;
     onNavigate: (screen: string) => void;
+    logoUrl: string;
     pathNodes: PathNode[];
     users: UserData[];
     events: Event[];
-    lbData: LeaderboardEntry[];
+    lbData: Record<string, LeaderboardEntry[]>;
+    badgesData: Array<{ icon: string; name: string; earned: boolean }>;
+    activityData: Array<{ time: string; text: string; pts: string }>;
     points: number;
+    animatedProfilePoints: number;
     streak: number;
+    user: { name: string; rollNo: string; domain: string; role: 'student' | 'admin' } | null;
     userName: string;
     userInitials: string;
-    surpriseMission: SurpriseMission | null;
+    surpriseMission: SurpriseMission;
     teamChallenges: TeamChallenge[];
+    teamConfettiChallengeId: string | null;
+    activeTickerItem: LiveTickerItem | null;
+    tickerIndex: number;
+    isSpinning: boolean;
+    spinUsed: boolean;
+    spinReward: number | null;
+    bouncingNodeId: number | null;
+    registeredSet: Set<number>;
+    declinedSet: Set<number>;
+    lbDomain: string;
+    userSearch: string;
+    userFilterDomain: string;
     modal: ModalState;
     filteredUsers: UserData[];
     liveTickerItems: LiveTickerItem[];
@@ -36,14 +53,29 @@ interface StudentLayoutProps {
     onUserClick: (user: UserData) => void;
     onModalClose: () => void;
     onLuckySpinClick: () => void;
-    onEventRegister: (eventId: number) => void;
+    onTickerTap: () => void;
+    onCompleteSurpriseMission: () => void;
+    onRerollSurpriseMission: () => void;
+    onEventRegister: (eventId: number, title: string) => void;
+    onEventReject: (eventId: number, title: string) => void;
+    onDomainChange: (domain: string) => void;
+    onSearchChange: (value: string) => void;
+    onFilterChange: (domain: string) => void;
     onAddTeamChallenge: (challenge: TeamChallenge) => void;
     onCompleteTeamChallenge: (id: string) => void;
     onAwardTeamBonus: (id: string) => void;
+    onJoinTeamChallenge: (id: string) => void;
     onClaimBadge: (badge: string) => void;
+    onShareLinkedIn: () => void;
+    onLogout: () => void;
     onPathNodeProofUpload: (nodeId: number, file: File) => void;
     onUpdateTeamMember: (challengeId: string, name: string, initials: string) => void;
     onUpdateSurpriseMission: (mission: SurpriseMission) => void;
+    avatarColor: (name: string) => string;
+    pickNodeAnimation: (seed: number) => { label: string; src: string };
+    nodeAnimationSide: (rowIndex: number) => 'left' | 'right';
+    connectorState: (state: string) => 'done' | 'active' | 'locked';
+    FlameIcon: React.ComponentType<{ hot: boolean }>;
     PathScreenComponent: React.LazyExoticComponent<React.ComponentType<any>>;
     EventsScreenComponent: React.LazyExoticComponent<React.ComponentType<any>>;
     LeaderboardScreenComponent: React.LazyExoticComponent<React.ComponentType<any>>;
@@ -74,16 +106,33 @@ const LoadingSpinner = () => (
 function StudentLayout({
     currentScreen,
     onNavigate,
+    logoUrl,
     pathNodes,
     users,
     events,
     lbData,
+    badgesData,
+    activityData,
     points,
+    animatedProfilePoints,
     streak,
+    user,
     userName,
     userInitials,
     surpriseMission,
     teamChallenges,
+    teamConfettiChallengeId,
+    activeTickerItem,
+    tickerIndex,
+    isSpinning,
+    spinUsed,
+    spinReward,
+    bouncingNodeId,
+    registeredSet,
+    declinedSet,
+    lbDomain,
+    userSearch,
+    userFilterDomain,
     modal,
     filteredUsers,
     liveTickerItems,
@@ -91,14 +140,29 @@ function StudentLayout({
     onUserClick,
     onModalClose,
     onLuckySpinClick,
+    onTickerTap,
+    onCompleteSurpriseMission,
+    onRerollSurpriseMission,
     onEventRegister,
+    onEventReject,
+    onDomainChange,
+    onSearchChange,
+    onFilterChange,
     onAddTeamChallenge,
     onCompleteTeamChallenge,
     onAwardTeamBonus,
+    onJoinTeamChallenge,
     onClaimBadge,
+    onShareLinkedIn,
+    onLogout,
     onPathNodeProofUpload,
     onUpdateTeamMember,
     onUpdateSurpriseMission,
+    avatarColor,
+    pickNodeAnimation,
+    nodeAnimationSide,
+    connectorState,
+    FlameIcon,
     PathScreenComponent,
     EventsScreenComponent,
     LeaderboardScreenComponent,
@@ -129,13 +193,93 @@ function StudentLayout({
             {/* Main Content */}
             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', background: COLORS.background }}>
                 <Suspense fallback={<LoadingSpinner />}>
-                    {currentScreen === 'path' && <PathScreenComponent pathNodes={pathNodes} onPathNodeClick={onPathNodeClick} surpriseMission={surpriseMission} onLuckySpinClick={onLuckySpinClick} onUpdateSurpriseMission={onUpdateSurpriseMission} onPathNodeProofUpload={onPathNodeProofUpload} />}
-                    {currentScreen === 'events' && <EventsScreenComponent events={events} onEventRegister={onEventRegister} />}
-                    {currentScreen === 'leaderboard' && <LeaderboardScreenComponent lbData={lbData} />}
-                    {currentScreen === 'users' && <UsersScreenComponent users={filteredUsers} onUserClick={onUserClick} />}
-                    {currentScreen === 'profile' && <ProfileScreenComponent userName={userName} userInitials={userInitials} points={points} streak={streak} onClaimBadge={onClaimBadge} />}
-                    {currentScreen === 'settings' && <StudentSettingsScreenComponent />}
-                    {currentScreen === 'team' && <TeamScreenComponent teamChallenges={teamChallenges} onAddTeamChallenge={onAddTeamChallenge} onCompleteTeamChallenge={onCompleteTeamChallenge} onAwardTeamBonus={onAwardTeamBonus} onUpdateTeamMember={onUpdateTeamMember} />}
+                    {currentScreen === 'path' && (
+                        <PathScreenComponent
+                            currentScreen={currentScreen}
+                            activeTickerItem={activeTickerItem}
+                            tickerIndex={tickerIndex}
+                            onTickerTap={onTickerTap}
+                            isSpinning={isSpinning}
+                            spinUsed={spinUsed}
+                            spinReward={spinReward}
+                            surpriseMission={surpriseMission}
+                            logoUrl={logoUrl}
+                            pathNodes={pathNodes}
+                            bouncingNodeId={bouncingNodeId}
+                            onPlayLuckySpin={onLuckySpinClick}
+                            onCompleteSurpriseMission={onCompleteSurpriseMission}
+                            onRerollSurpriseMission={onRerollSurpriseMission}
+                            onNodeTap={onPathNodeClick}
+                            pickNodeAnimation={pickNodeAnimation}
+                            nodeAnimationSide={nodeAnimationSide}
+                            connectorState={connectorState}
+                        />
+                    )}
+                    {currentScreen === 'events' && (
+                        <EventsScreenComponent
+                            currentScreen={currentScreen}
+                            events={events}
+                            registeredSet={registeredSet}
+                            declinedSet={declinedSet}
+                            onRegister={onEventRegister}
+                            onReject={onEventReject}
+                        />
+                    )}
+                    {currentScreen === 'leaderboard' && (
+                        <LeaderboardScreenComponent
+                            currentScreen={currentScreen}
+                            lbDomain={lbDomain}
+                            lbData={lbData}
+                            points={points}
+                            userName={userName}
+                            onDomainChange={onDomainChange}
+                            avatarColor={avatarColor}
+                        />
+                    )}
+                    {currentScreen === 'users' && (
+                        <UsersScreenComponent
+                            currentScreen={currentScreen}
+                            userSearch={userSearch}
+                            userFilterDomain={userFilterDomain}
+                            filteredUsers={filteredUsers}
+                            avatarColor={avatarColor}
+                            onSearchChange={onSearchChange}
+                            onFilterChange={onFilterChange}
+                            onUserClick={onUserClick}
+                        />
+                    )}
+                    {currentScreen === 'profile' && (
+                        <ProfileScreenComponent
+                            currentScreen={currentScreen}
+                            user={user}
+                            animatedProfilePoints={animatedProfilePoints}
+                            streak={streak}
+                            points={points}
+                            badgesData={badgesData}
+                            activityData={activityData}
+                            onBadgeClick={onClaimBadge}
+                            onShareLinkedIn={onShareLinkedIn}
+                            onLogout={onLogout}
+                            FlameIcon={FlameIcon}
+                        />
+                    )}
+                    {currentScreen === 'settings' && (
+                        <StudentSettingsScreenComponent
+                            currentScreen={currentScreen}
+                            user={user}
+                            points={points}
+                            onLogout={onLogout}
+                        />
+                    )}
+                    {currentScreen === 'team' && (
+                        <TeamScreenComponent
+                            currentScreen={currentScreen}
+                            teamChallenges={teamChallenges}
+                            teamConfettiChallengeId={teamConfettiChallengeId}
+                            avatarColor={avatarColor}
+                            onJoinChallenge={onJoinTeamChallenge}
+                        />
+                    )}
                 </Suspense>
             </div>
 
